@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-
     <dimen name="shape_extra_large">28dp</dimen>
     <dimen name="shape_large">20dp</dimen>
     <dimen name="shape_medium">14dp</dimen>
     <dimen name="shape_small">8dp</dimen>
-
 </resources>

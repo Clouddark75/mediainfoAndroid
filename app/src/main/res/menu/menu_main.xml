@@ -13,27 +13,35 @@
         android:id="@+id/menu_output_format"
         android:title="@string/menu_output_format">
         <menu>
-            <item
-                android:id="@+id/format_text"
-                android:title="@string/format_text" />
-            <item
-                android:id="@+id/format_html"
-                android:title="@string/format_html"
-                android:checked="true" />
-            <item
-                android:id="@+id/format_json"
-                android:title="@string/format_json" />
-            <item
-                android:id="@+id/format_xml"
-                android:title="@string/format_xml" />
-            <item
-                android:id="@+id/format_pbcore"
-                android:title="@string/format_pbcore" />
-            <item
-                android:id="@+id/format_ebucore"
-                android:title="@string/format_ebucore" />
+            <group android:checkableBehavior="single">
+                <item
+                    android:id="@+id/format_text"
+                    android:title="@string/format_text" />
+                <item
+                    android:id="@+id/format_html"
+                    android:title="@string/format_html"
+                    android:checked="true" />
+                <item
+                    android:id="@+id/format_json"
+                    android:title="@string/format_json" />
+                <item
+                    android:id="@+id/format_xml"
+                    android:title="@string/format_xml" />
+                <item
+                    android:id="@+id/format_pbcore"
+                    android:title="@string/format_pbcore" />
+                <item
+                    android:id="@+id/format_ebucore"
+                    android:title="@string/format_ebucore" />
+            </group>
         </menu>
     </item>
+    
+    <item
+        android:id="@+id/menu_trim_spaces"
+        android:title="@string/menu_trim_spaces"
+        android:checkable="true"
+        android:checked="false" />
     
     <item
         android:id="@+id/menu_copy_clipboard"
@@ -43,13 +51,15 @@
         android:id="@+id/menu_theme"
         android:title="@string/menu_theme">
         <menu>
-            <item
-                android:id="@+id/theme_default"
-                android:title="@string/theme_default"
-                android:checked="true" />
-            <item
-                android:id="@+id/theme_dark"
-                android:title="@string/theme_dark" />
+            <group android:checkableBehavior="single">
+                <item
+                    android:id="@+id/theme_default"
+                    android:title="@string/theme_default"
+                    android:checked="true" />
+                <item
+                    android:id="@+id/theme_dark"
+                    android:title="@string/theme_dark" />
+            </group>
         </menu>
     </item>
     

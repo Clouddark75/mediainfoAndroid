@@ -419,7 +419,7 @@ class MainActivity : AppCompatActivity() {
         
         lifecycleScope.launch {
             try {
-                // Changed parameter name from onProgress to progressCallback
+                // Pasar URL completa para que MediaInfo la use como "Complete name"
                 val result = MediaInfoStreamHelper.analyzeFromStreamIncremental(
                     url,
                     progressCallback = { bytesRead: Long, totalBytes: Long?, status: String ->
@@ -457,7 +457,7 @@ class MainActivity : AppCompatActivity() {
     private fun getMediaInfoFormatParam(format: String): String {
         return when (format) {
             "Text" -> "Text"
-            "HTML" -> "HTML"
+            "HTML" -> "Text"  // Obtener en formato Text para parsearlo nosotros
             "JSON" -> "JSON"
             "XML" -> "MIXML"
             "PBCore" -> "PBCore"
@@ -479,17 +479,12 @@ class MainActivity : AppCompatActivity() {
         
         val formattedOutput = when (currentFormat) {
             "Text" -> {
-                // Formatear texto con colores
+                // Formato texto simple con colores
                 MediaInfoHtmlRenderer.parseAndFormat(this, currentOutput, isDarkTheme, trimSpaces)
             }
             "HTML" -> {
-                // HTML generado por MediaInfo - renderizar como HTML
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                    android.text.Html.fromHtml(currentOutput, android.text.Html.FROM_HTML_MODE_LEGACY)
-                } else {
-                    @Suppress("DEPRECATION")
-                    android.text.Html.fromHtml(currentOutput)
-                }
+                // Formato tabla con colores y mejor estructura
+                MediaInfoTableRenderer.parseAndFormatAsTable(this, currentOutput, isDarkTheme, trimSpaces)
             }
             "JSON", "XML", "PBCore", "EBUCore" -> {
                 // Para formatos estructurados, mostrar raw

@@ -1,4 +1,4 @@
-name: Android App Build (Using AAR)
+name: Android App Build (Signed & Fast)
 
 on:
   workflow_dispatch:
@@ -23,6 +23,21 @@ jobs:
 
       - uses: android-actions/setup-android@v3
 
+      # ⚡ Cache NDK
+      - name: Cache Android NDK
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.ANDROID_HOME }}/ndk/27.2.12479018
+          key: ndk-27.2.12479018
+
+      - name: Install NDK (if missing)
+        run: |
+          if [ ! -d "$ANDROID_HOME/ndk/27.2.12479018" ]; then
+            echo "y" | sdkmanager --install "ndk;27.2.12479018"
+          fi
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> $GITHUB_ENV
+
       - name: Download latest AAR
         uses: robinraju/release-downloader@v1.10
         with:
@@ -30,12 +45,22 @@ jobs:
           fileName: "*.aar"
           out-file-path: mediainfo-lib/prebuilt
 
+      # 🔐 Keystore
+      - name: Decode keystore
+        run: |
+          echo "${{ secrets.SIGNING_KEYSTORE_BASE64 }}" | base64 -d > release.keystore
+          echo "SIGNING_KEYSTORE_PATH=$PWD/release.keystore" >> $GITHUB_ENV
+
       - run: chmod +x gradlew
 
-      - name: Build APK
-        run: ./gradlew :app:assembleDebug :app:assembleRelease --no-daemon
+      - name: Build signed APK
+        env:
+          SIGNING_KEYSTORE_PASSWORD: ${{ secrets.SIGNING_KEYSTORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        run: ./gradlew :app:assembleRelease --no-daemon
 
       - uses: actions/upload-artifact@v4
         with:
-          name: apk
-          path: app/build/outputs/apk/**
+          name: signed-release-apk
+          path: app/build/outputs/apk/release/*.apk

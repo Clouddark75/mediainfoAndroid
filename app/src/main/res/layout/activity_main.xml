@@ -24,7 +24,7 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        android:text="Seleccionar Archivo Local"
+        android:text="📁 Seleccionar Archivo Local"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/tvVersion" />
@@ -36,6 +36,7 @@
         android:layout_marginTop="16dp"
         android:text="O analizar desde URL HTTP/HTTPS:"
         android:textSize="14sp"
+        android:textStyle="bold"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/btnPickFile" />
 
@@ -62,19 +63,21 @@
         app:layout_constraintTop_toBottomOf="@id/etUrl">
 
         <Button
-            android:id="@+id/btnAnalyzeUrl"
+            android:id="@+id/btnAnalyzeUrlIncremental"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginEnd="8dp"
             android:layout_weight="1"
-            android:text="Completo" />
+            android:text="⚡ Streaming\n(Rápido)"
+            android:textSize="12sp" />
 
         <Button
-            android:id="@+id/btnAnalyzeUrlPartial"
+            android:id="@+id/btnAnalyzeUrlFull"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Parcial (5MB)" />
+            android:text="📥 Descarga\nCompleta"
+            android:textSize="12sp" />
     </LinearLayout>
 
     <ProgressBar
@@ -88,22 +91,34 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/layoutButtons" />
 
+    <TextView
+        android:id="@+id/tvStats"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:textColor="@android:color/holo_blue_dark"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/progressBar" />
+
     <ScrollView
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="8dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/progressBar">
+        app:layout_constraintTop_toBottomOf="@id/tvStats">
 
         <TextView
             android:id="@+id/tvOutput"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:fontFamily="monospace"
-            android:text="Seleccione un archivo o ingrese una URL"
-            android:textSize="12sp" />
+            android:text="Seleccione un archivo o ingrese una URL para comenzar"
+            android:textSize="11sp" />
     </ScrollView>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

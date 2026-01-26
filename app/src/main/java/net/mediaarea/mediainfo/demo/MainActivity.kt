@@ -195,9 +195,9 @@ class MainActivity : AppCompatActivity() {
         prefs.edit().putString("format", format).apply()
         Toast.makeText(this, getString(R.string.format_changed, format), Toast.LENGTH_SHORT).show()
         
-        // Re-analizar si hay datos
+        // Re-renderizar con el nuevo formato si hay datos
         if (currentOutput.isNotEmpty()) {
-            // Trigger re-analysis with new format
+            refreshDisplay()
         }
     }
     
@@ -335,8 +335,8 @@ class MainActivity : AppCompatActivity() {
                 val pfd: ParcelFileDescriptor? = contentResolver.openFileDescriptor(uri, "r")
                 val fd = pfd?.detachFd() ?: throw Exception(getString(R.string.error_opening_file))
                 
-                val formatParam = getMediaInfoFormatParam(currentFormat)
-                val result = MediaInfoUtil.getMediaInfo(fd, currentFileName, formatParam)
+                // Obtener en formato Text siempre (MediaInfo lo formatea bien)
+                val result = MediaInfoUtil.getMediaInfo(fd, currentFileName, "Text")
                 
                 pfd?.close()
                 
@@ -344,7 +344,7 @@ class MainActivity : AppCompatActivity() {
                 
                 withContext(Dispatchers.Main) {
                     binding.progressBar.visibility = View.GONE
-                    binding.tvOutput.text = formatOutput(result)
+                    refreshDisplay()
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -383,13 +383,8 @@ class MainActivity : AppCompatActivity() {
                     binding.progressBar.visibility = View.GONE
                     
                     if (result.success) {
-                        currentOutput = when (currentFormat) {
-                            "Text" -> result.textOutput
-                            "HTML" -> result.textOutput
-                            "JSON", "XML" -> result.xmlOutput
-                            else -> result.textOutput
-                        }
-                        binding.tvOutput.text = formatOutput(currentOutput)
+                        currentOutput = result.textOutput
+                        refreshDisplay()
                     } else {
                         binding.tvOutput.text = getString(R.string.error_analyzing) + ": ${result.error}"
                     }
@@ -406,8 +401,7 @@ class MainActivity : AppCompatActivity() {
     
     private fun getMediaInfoFormatParam(format: String): String {
         return when (format) {
-            "Text" -> "Text"
-            "HTML" -> "HTML"
+            "Text", "HTML" -> "Text"
             "JSON" -> "JSON"
             "XML" -> "MIXML"
             "PBCore" -> "PBCore"
@@ -418,5 +412,30 @@ class MainActivity : AppCompatActivity() {
     
     private fun formatOutput(output: String): String {
         return output.ifEmpty { getString(R.string.no_file_loaded) }
+    }
+    
+    /**
+     * Refresca la visualización con el formato actual
+     */
+    private fun refreshDisplay() {
+        if (currentOutput.isEmpty()) {
+            binding.tvOutput.text = getString(R.string.no_file_loaded)
+            return
+        }
+        
+        val isDarkTheme = currentTheme == "dark"
+        
+        val formattedOutput = when (currentFormat) {
+            "Text", "HTML" -> {
+                MediaInfoHtmlRenderer.parseTextFormat(this, currentOutput, isDarkTheme)
+            }
+            "JSON", "XML", "PBCore", "EBUCore" -> {
+                // Para formatos estructurados, mostrar raw
+                currentOutput
+            }
+            else -> currentOutput
+        }
+        
+        binding.tvOutput.text = formattedOutput
     }
 }

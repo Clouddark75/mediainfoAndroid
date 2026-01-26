@@ -6,53 +6,53 @@
     <font
         android:fontStyle="normal"
         android:fontWeight="100"
-        android:font="@font/googlesans_flex_thin"
+        android:font="@font/google_sans_flex_thin"
         app:fontStyle="normal"
         app:fontWeight="100"
-        app:font="@font/googlesans_flex_thin" />
+        app:font="@font/google_sans_flex_thin" />
     
     <!-- Light -->
     <font
         android:fontStyle="normal"
         android:fontWeight="300"
-        android:font="@font/googlesans_flex_light"
+        android:font="@font/google_sans_flex_light"
         app:fontStyle="normal"
         app:fontWeight="300"
-        app:font="@font/googlesans_flex_light" />
+        app:font="@font/google_sans_flex_light" />
     
     <!-- Regular -->
     <font
         android:fontStyle="normal"
         android:fontWeight="400"
-        android:font="@font/googlesans_flex_regular"
+        android:font="@font/google_sans_flex_regular"
         app:fontStyle="normal"
         app:fontWeight="400"
-        app:font="@font/googlesans_flex_regular" />
+        app:font="@font/google_sans_flex_regular" />
     
     <!-- Medium -->
     <font
         android:fontStyle="normal"
         android:fontWeight="500"
-        android:font="@font/googlesans_flex_medium"
+        android:font="@font/google_sans_flex_medium"
         app:fontStyle="normal"
         app:fontWeight="500"
-        app:font="@font/googlesans_flex_medium" />
+        app:font="@font/google_sans_flex_medium" />
     
     <!-- Bold -->
     <font
         android:fontStyle="normal"
         android:fontWeight="700"
-        android:font="@font/googlesans_flex_bold"
+        android:font="@font/google_sans_flex_bold"
         app:fontStyle="normal"
         app:fontWeight="700"
-        app:font="@font/googlesans_flex_bold" />
+        app:font="@font/google_sans_flex_bold" />
     
     <!-- ExtraBold -->
     <font
         android:fontStyle="normal"
         android:fontWeight="800"
-        android:font="@font/googlesans_flex_extrabold"
+        android:font="@font/google_sans_flex_extrabold"
         app:fontStyle="normal"
         app:fontWeight="800"
-        app:font="@font/googlesans_flex_extrabold" />
+        app:font="@font/google_sans_flex_extrabold" />
 </font-family>

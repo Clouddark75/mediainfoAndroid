@@ -185,64 +185,64 @@ class MediaInfoStreamHelper {
             cacheDir: File,
             progressCallback: ((Int) -> Unit)? = null
         ): String = withContext(Dispatchers.IO) {
-            
+
             val client = OkHttpClient.Builder()
                 .connectTimeout(30, TimeUnit.SECONDS)
                 .readTimeout(30, TimeUnit.SECONDS)
                 .build()
-            
+
             val request = Request.Builder()
                 .url(url)
                 .build()
-            
+
             try {
                 val response = client.newCall(request).execute()
-                
+
                 if (!response.isSuccessful) {
                     throw Exception("Error HTTP: ${response.code}")
                 }
-                
+
                 val contentLength = response.body?.contentLength() ?: -1
                 val inputStream = response.body?.byteStream() 
                     ?: throw Exception("No se pudo obtener el stream")
-                
+
                 val tempFile = File.createTempFile("mediainfo_", ".tmp", cacheDir)
                 tempFile.deleteOnExit()
-                
+
                 val outputStream = FileOutputStream(tempFile)
                 val buffer = ByteArray(8192)
                 var bytesRead: Int
                 var totalBytesRead = 0L
-                
+
                 while (inputStream.read(buffer).also { bytesRead = it } != -1) {
                     outputStream.write(buffer, 0, bytesRead)
                     totalBytesRead += bytesRead
-                    
+
                     if (contentLength > 0) {
                         val progress = ((totalBytesRead * 100) / contentLength).toInt()
                         progressCallback?.invoke(progress)
                     }
                 }
-                
+
                 outputStream.close()
                 inputStream.close()
-                
+
                 val mediaInfo = MediaInfo()
-                val opened = mediaInfo.Open(tempFile.absolutePath)
-                
-                if (!opened) {
-                    tempFile.delete()
-                    throw Exception("No se pudo abrir el archivo con MediaInfo")
-                }
-                
+
+                // Use Open_Buffer methods instead of Open()
+                val fileBytes = tempFile.readBytes()
+                mediaInfo.Open_Buffer_Init(fileBytes.size.toLong(), 0)
+                mediaInfo.Open_Buffer_Continue(fileBytes, fileBytes.size.toLong())
+                mediaInfo.Open_Buffer_Finalize()
+
                 mediaInfo.Option("Inform", "MIXML")
                 val result = mediaInfo.Inform()
-                
+
                 mediaInfo.Close()
                 tempFile.delete()
-                
+
                 result
-                
+
             } catch (e: Exception) {
                 Log.e(TAG, "Error al analizar desde URL", e)
                 throw e

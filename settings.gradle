@@ -1,1 +1,3 @@
+rootProject.name = "MediaInfoAndroid"
 include ':mediainfo-lib'
+include ':app'  // Nuevo módulo para la app de ejemplo

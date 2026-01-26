@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.ParcelFileDescriptor
+import android.view.View
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -54,40 +55,29 @@ class MainActivity : AppCompatActivity() {
         
         when (intent.action) {
             Intent.ACTION_VIEW -> {
-                // Archivo o URL abierta directamente
-                intent.data?.let { uri ->
-                    handleUri(uri)
-                }
+                intent.data?.let { uri -> handleUri(uri) }
             }
             Intent.ACTION_SEND -> {
-                // Archivo compartido con la app
                 if (intent.type?.startsWith("text/") == true) {
-                    // URL compartida como texto
                     val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
                     sharedText?.let { url ->
                         if (url.startsWith("http://") || url.startsWith("https://")) {
                             binding.etUrl.setText(url)
-                            Toast.makeText(this, "URL cargada. Presione 'Streaming' para analizar", Toast.LENGTH_LONG).show()
+                            Toast.makeText(this, R.string.url_loaded, Toast.LENGTH_LONG).show()
                         }
                     }
                 } else {
-                    // Archivo multimedia compartido
                     (intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM))?.let { uri ->
                         handleUri(uri)
                     }
                 }
             }
             Intent.ACTION_SEND_MULTIPLE -> {
-                // Múltiples archivos compartidos
                 intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)?.let { uris ->
                     if (uris.isNotEmpty()) {
-                        handleUri(uris[0]) // Analizar el primero
+                        handleUri(uris[0])
                         if (uris.size > 1) {
-                            Toast.makeText(
-                                this,
-                                "Múltiples archivos detectados. Analizando el primero.",
-                                Toast.LENGTH_LONG
-                            ).show()
+                            Toast.makeText(this, R.string.multiple_files_detected, Toast.LENGTH_LONG).show()
                         }
                     }
                 }
@@ -101,19 +91,16 @@ class MainActivity : AppCompatActivity() {
     private fun handleUri(uri: Uri) {
         when (uri.scheme) {
             "http", "https", "rtsp", "rtmp", "mms", "ftp", "ftps", "sftp" -> {
-                // URL remota
                 binding.etUrl.setText(uri.toString())
-                Toast.makeText(this, "URL cargada: ${uri.toString()}", Toast.LENGTH_SHORT).show()
-                // Auto-iniciar análisis
+                Toast.makeText(this, getString(R.string.url_loaded_simple, uri.toString()), Toast.LENGTH_SHORT).show()
                 analyzeFromUrlIncremental(uri.toString())
             }
             "file", "content" -> {
-                // Archivo local
-                Toast.makeText(this, "Analizando archivo local...", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, R.string.analyzing_local, Toast.LENGTH_SHORT).show()
                 analyzeLocalFile(uri)
             }
             else -> {
-                Toast.makeText(this, "Esquema no soportado: ${uri.scheme}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.scheme_not_supported, uri.scheme), Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -128,7 +115,7 @@ class MainActivity : AppCompatActivity() {
             if (url.isNotEmpty()) {
                 analyzeFromUrlIncremental(url)
             } else {
-                Toast.makeText(this, "Ingrese una URL válida", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, R.string.enter_valid_url, Toast.LENGTH_SHORT).show()
             }
         }
         
@@ -137,7 +124,7 @@ class MainActivity : AppCompatActivity() {
             if (url.isNotEmpty()) {
                 analyzeFromUrlFull(url)
             } else {
-                Toast.makeText(this, "Ingrese una URL válida", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, R.string.enter_valid_url, Toast.LENGTH_SHORT).show()
             }
         }
         
@@ -150,7 +137,7 @@ class MainActivity : AppCompatActivity() {
         binding.etUrl.setText(exampleUrls[0])
         
         // Mostrar versión de MediaInfo
-        binding.tvVersion.text = "MediaInfo ${MediaInfoUtil.getVersion()}"
+        binding.tvVersion.text = getString(R.string.version_label, MediaInfoUtil.getVersion())
     }
     
     private fun checkPermissions() {
@@ -180,45 +167,43 @@ class MainActivity : AppCompatActivity() {
     }
     
     private fun analyzeLocalFile(uri: Uri) {
-        binding.progressBar.visibility = android.view.View.VISIBLE
+        binding.progressBar.visibility = View.VISIBLE
         binding.progressBar.isIndeterminate = true
-        binding.tvOutput.text = "Analizando archivo local..."
-        binding.tvStats.text = "📁 Archivo: ${uri.lastPathSegment ?: "desconocido"}"
+        binding.cardStats.visibility = View.VISIBLE
+        binding.tvOutput.text = getString(R.string.analyzing_local_file)
+        binding.tvStats.text = getString(R.string.file_label, uri.lastPathSegment ?: "desconocido")
         
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val pfd: ParcelFileDescriptor? = contentResolver.openFileDescriptor(uri, "r")
-                val fd = pfd?.detachFd() ?: throw Exception("No se pudo abrir el archivo")
+                val fd = pfd?.detachFd() ?: throw Exception(getString(R.string.error_opening_file))
                 
                 val result = MediaInfoUtil.getMediaInfo(fd, uri.lastPathSegment ?: "unknown", "Text")
                 
                 pfd?.close()
                 
                 withContext(Dispatchers.Main) {
-                    binding.progressBar.visibility = android.view.View.GONE
-                    binding.tvStats.text = "✅ Análisis completado"
+                    binding.progressBar.visibility = View.GONE
+                    binding.tvStats.text = getString(R.string.analysis_complete)
                     binding.tvOutput.text = result
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
                 withContext(Dispatchers.Main) {
-                    binding.progressBar.visibility = android.view.View.GONE
-                    binding.tvStats.text = "❌ Error en el análisis"
-                    Toast.makeText(this@MainActivity, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                    binding.progressBar.visibility = View.GONE
+                    binding.tvStats.text = getString(R.string.analysis_error)
+                    Toast.makeText(this@MainActivity, getString(R.string.error_format, e.message), Toast.LENGTH_LONG).show()
                 }
             }
         }
     }
     
-    /**
-     * Análisis incremental (streaming) - MÉTODO RECOMENDADO
-     * Solo descarga lo mínimo necesario y se detiene automáticamente
-     */
     private fun analyzeFromUrlIncremental(url: String) {
-        binding.progressBar.visibility = android.view.View.VISIBLE
+        binding.progressBar.visibility = View.VISIBLE
         binding.progressBar.isIndeterminate = false
         binding.progressBar.progress = 0
-        binding.tvOutput.text = "Iniciando análisis incremental..."
+        binding.cardStats.visibility = View.VISIBLE
+        binding.tvOutput.text = getString(R.string.starting_incremental_analysis)
         binding.tvStats.text = ""
         
         lifecycleScope.launch {
@@ -241,18 +226,18 @@ class MainActivity : AppCompatActivity() {
                 val duration = (endTime - startTime) / 1000.0
                 
                 withContext(Dispatchers.Main) {
-                    binding.progressBar.visibility = android.view.View.GONE
+                    binding.progressBar.visibility = View.GONE
                     
                     if (result.success) {
                         val statsText = buildString {
-                            appendLine("✅ Análisis completado en ${"%.2f".format(duration)} segundos")
-                            appendLine("📊 Descargado: ${result.percentDownloaded}% del archivo")
-                            appendLine("💾 Datos procesados: ${formatBytes(result.bytesDownloaded)}")
+                            appendLine(getString(R.string.stats_completed_time, duration))
+                            appendLine(getString(R.string.stats_downloaded_percent, result.percentDownloaded))
+                            appendLine(getString(R.string.stats_data_processed, formatBytes(result.bytesDownloaded)))
                             if (result.totalFileSize > 0) {
-                                appendLine("📁 Tamaño total: ${formatBytes(result.totalFileSize)}")
+                                appendLine(getString(R.string.stats_total_size, formatBytes(result.totalFileSize)))
                                 val savedBytes = result.totalFileSize - result.bytesDownloaded
                                 val savedPercent = ((savedBytes.toDouble() / result.totalFileSize) * 100).toInt()
-                                appendLine("⚡ Ahorro: ${formatBytes(savedBytes)} ($savedPercent%)")
+                                appendLine(getString(R.string.stats_saved, formatBytes(savedBytes), savedPercent))
                             }
                         }
                         
@@ -261,34 +246,32 @@ class MainActivity : AppCompatActivity() {
                         
                         Toast.makeText(
                             this@MainActivity,
-                            "¡Análisis completado! Solo se descargó el ${result.percentDownloaded}% del archivo",
+                            getString(R.string.analysis_completed_toast, result.percentDownloaded),
                             Toast.LENGTH_LONG
                         ).show()
                     } else {
-                        binding.tvStats.text = "❌ Error en el análisis"
-                        binding.tvOutput.text = "Error: ${result.error}"
-                        Toast.makeText(this@MainActivity, "Error: ${result.error}", Toast.LENGTH_LONG).show()
+                        binding.tvStats.text = getString(R.string.analysis_error)
+                        binding.tvOutput.text = getString(R.string.error_format, result.error)
+                        Toast.makeText(this@MainActivity, getString(R.string.error_format, result.error), Toast.LENGTH_LONG).show()
                     }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
                 withContext(Dispatchers.Main) {
-                    binding.progressBar.visibility = android.view.View.GONE
-                    binding.tvStats.text = "❌ Error"
-                    Toast.makeText(this@MainActivity, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                    binding.progressBar.visibility = View.GONE
+                    binding.tvStats.text = getString(R.string.analysis_error)
+                    Toast.makeText(this@MainActivity, getString(R.string.error_format, e.message), Toast.LENGTH_LONG).show()
                 }
             }
         }
     }
     
-    /**
-     * Análisis con descarga completa - Para comparación
-     */
     private fun analyzeFromUrlFull(url: String) {
-        binding.progressBar.visibility = android.view.View.VISIBLE
+        binding.progressBar.visibility = View.VISIBLE
         binding.progressBar.isIndeterminate = false
         binding.progressBar.progress = 0
-        binding.tvOutput.text = "Descargando archivo completo..."
+        binding.cardStats.visibility = View.VISIBLE
+        binding.tvOutput.text = getString(R.string.downloading_full_file)
         binding.tvStats.text = ""
         
         lifecycleScope.launch {
@@ -298,7 +281,7 @@ class MainActivity : AppCompatActivity() {
                 val result = MediaInfoStreamHelper.analyzeFromUrl(url, cacheDir) { progress ->
                     lifecycleScope.launch(Dispatchers.Main) {
                         binding.progressBar.progress = progress
-                        binding.tvStats.text = "Descargando: $progress%"
+                        binding.tvStats.text = getString(R.string.downloading_progress, progress)
                     }
                 }
                 
@@ -306,16 +289,16 @@ class MainActivity : AppCompatActivity() {
                 val duration = (endTime - startTime) / 1000.0
                 
                 withContext(Dispatchers.Main) {
-                    binding.progressBar.visibility = android.view.View.GONE
-                    binding.tvStats.text = "✅ Descarga completa en ${"%.2f".format(duration)} segundos"
+                    binding.progressBar.visibility = View.GONE
+                    binding.tvStats.text = getString(R.string.download_complete, duration)
                     binding.tvOutput.text = formatOutput(result)
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
                 withContext(Dispatchers.Main) {
-                    binding.progressBar.visibility = android.view.View.GONE
-                    binding.tvStats.text = "❌ Error"
-                    Toast.makeText(this@MainActivity, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                    binding.progressBar.visibility = View.GONE
+                    binding.tvStats.text = getString(R.string.analysis_error)
+                    Toast.makeText(this@MainActivity, getString(R.string.error_format, e.message), Toast.LENGTH_LONG).show()
                 }
             }
         }
@@ -323,10 +306,10 @@ class MainActivity : AppCompatActivity() {
     
     private fun formatBytes(bytes: Long): String {
         return when {
-            bytes < 1024 -> "$bytes B"
-            bytes < 1024 * 1024 -> String.format("%.2f KB", bytes / 1024.0)
-            bytes < 1024 * 1024 * 1024 -> String.format("%.2f MB", bytes / (1024.0 * 1024.0))
-            else -> String.format("%.2f GB", bytes / (1024.0 * 1024.0 * 1024.0))
+            bytes < 1024 -> getString(R.string.bytes, bytes.toInt())
+            bytes < 1024 * 1024 -> getString(R.string.kilobytes, bytes / 1024.0)
+            bytes < 1024 * 1024 * 1024 -> getString(R.string.megabytes, bytes / (1024.0 * 1024.0))
+            else -> getString(R.string.gigabytes, bytes / (1024.0 * 1024.0 * 1024.0))
         }
     }
     

@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MediaInfo</string>
+    
+    <!-- Main Activity -->
+    <string name="version_label">MediaInfo %s</string>
+    <string name="select_local_file">📁 Seleccionar Archivo Local</string>
+    <string name="analyze_from_url_label">O analizar desde URL HTTP/HTTPS:</string>
+    <string name="url_hint">https://example.com/video.mp4</string>
+    <string name="btn_streaming">⚡ Streaming\n(Rápido)</string>
+    <string name="btn_full_download">📥 Descarga\nCompleta</string>
+    <string name="initial_message">Seleccione un archivo o ingrese una URL para comenzar</string>
+    
+    <!-- Status Messages -->
+    <string name="analyzing_local_file">Analizando archivo local…</string>
+    <string name="starting_incremental_analysis">Iniciando análisis incremental…</string>
+    <string name="downloading_full_file">Descargando archivo completo…</string>
+    <string name="analysis_complete">✅ Análisis completado</string>
+    <string name="analysis_error">❌ Error en el análisis</string>
+    <string name="download_complete">✅ Descarga completa en %.2f segundos</string>
+    
+    <!-- Progress Messages -->
+    <string name="file_label">📁 Archivo: %s</string>
+    <string name="downloading_progress">Descargando: %d%%</string>
+    <string name="processing_data">Procesando: %s (%d%%)</string>
+    
+    <!-- Statistics -->
+    <string name="stats_completed_time">✅ Análisis completado en %.2f segundos</string>
+    <string name="stats_downloaded_percent">📊 Descargado: %d%% del archivo</string>
+    <string name="stats_data_processed">💾 Datos procesados: %s</string>
+    <string name="stats_total_size">📁 Tamaño total: %s</string>
+    <string name="stats_saved">⚡ Ahorro: %s (%d%%)</string>
+    
+    <!-- Toast Messages -->
+    <string name="enter_valid_url">Ingrese una URL válida</string>
+    <string name="url_loaded">URL cargada. Presione \'Streaming\' para analizar</string>
+    <string name="url_loaded_simple">URL cargada: %s</string>
+    <string name="analyzing_local">Analizando archivo local…</string>
+    <string name="scheme_not_supported">Esquema no soportado: %s</string>
+    <string name="multiple_files_detected">Múltiples archivos detectados. Analizando el primero.</string>
+    <string name="analysis_completed_toast">¡Análisis completado! Solo se descargó el %d%% del archivo</string>
+    <string name="error_format">Error: %s</string>
+    
+    <!-- Errors -->
+    <string name="error_opening_file">No se pudo abrir el archivo</string>
+    <string name="error_http">Error HTTP: %d - %s</string>
+    <string name="error_no_stream">No se pudo obtener el stream</string>
+    <string name="error_mediainfo_open">No se pudo abrir el archivo con MediaInfo</string>
+    <string name="error_unknown">Error desconocido</string>
+    
+    <!-- Summary -->
+    <string name="summary_header">═══ RESUMEN DEL ANÁLISIS ═══</string>
+    <string name="summary_downloaded">Descargado: %s de %s (%d%%)</string>
+    <string name="summary_format">Formato: %s</string>
+    <string name="summary_duration">Duración: %s</string>
+    <string name="summary_filesize">Tamaño: %s</string>
+    <string name="summary_bitrate">Bitrate: %s</string>
+    <string name="summary_video">Video: %s</string>
+    <string name="summary_audio">Audio: %s</string>
+    <string name="summary_full_info">═══ INFORMACIÓN COMPLETA ═══</string>
+    
+    <!-- Units -->
+    <string name="bytes">%d B</string>
+    <string name="kilobytes">%.2f KB</string>
+    <string name="megabytes">%.2f MB</string>
+    <string name="gigabytes">%.2f GB</string>
+    <string name="unknown_size">desconocido</string>
+    
+    <!-- Content Descriptions -->
+    <string name="cd_app_icon">Icono de MediaInfo</string>
+    <string name="cd_progress_bar">Barra de progreso de análisis</string>
+    
+    <!-- Permissions -->
+    <string name="permission_required">Permisos requeridos</string>
+    <string name="permission_storage_rationale">MediaInfo necesita acceso al almacenamiento para analizar archivos multimedia</string>
+</resources>

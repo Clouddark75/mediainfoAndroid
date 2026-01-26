@@ -24,30 +24,14 @@
 
     </style>
 
-    <!-- Theme Default (Brown / Orange Expressive) -->
+    <!-- Theme Default -->
     <style name="Theme.MediaInfo.Default" parent="Theme.MediaInfo.Base">
-
-        <item name="colorPrimaryContainer">@color/theme_default_primary_container</item>
-        <item name="colorOnPrimaryContainer">@color/theme_default_on_primary_container</item>
-
-        <item name="colorSurface">@color/theme_default_surface</item>
-        <item name="colorOnSurface">@color/theme_default_text_primary</item>
-
-        <item name="android:windowBackground">@color/theme_default_background</item>
-
+        <item name="android:windowBackground">?attr/colorBackground</item>
     </style>
 
-    <!-- Theme Dark (Pure Dark M3) -->
+    <!-- Theme Dark (opcional, Dynamic Colors ya maneja dark) -->
     <style name="Theme.MediaInfo.Dark" parent="Theme.MediaInfo.Base">
-
-        <item name="colorPrimaryContainer">@color/theme_dark_primary_container</item>
-        <item name="colorOnPrimaryContainer">@color/theme_dark_on_primary_container</item>
-
-        <item name="colorSurface">@color/theme_dark_surface</item>
-        <item name="colorOnSurface">@color/theme_dark_text_primary</item>
-
-        <item name="android:windowBackground">@color/theme_dark_background</item>
-
+        <item name="android:windowBackground">?attr/colorBackground</item>
     </style>
 
     <!-- Theme activo -->

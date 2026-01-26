@@ -1,41 +1,56 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    
-    <!-- Base Theme -->
-    <style name="Theme.MediaInfo.Base" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+
+    <!-- Base Material3 Expressive -->
+    <style name="Theme.MediaInfo.Base" parent="Theme.Material3.DynamicColors.DayNight.NoActionBar">
+
+        <!-- Tipografía -->
         <item name="android:fontFamily">@font/google_sans_font_family</item>
         <item name="fontFamily">@font/google_sans_font_family</item>
-        <item name="android:statusBarColor">?attr/colorPrimary</item>
+
+        <!-- System bars -->
+        <item name="android:statusBarColor">?attr/colorSurface</item>
+        <item name="android:navigationBarColor">?attr/colorSurface</item>
+
+        <!-- Expressive shapes -->
+        <item name="shapeAppearanceCornerExtraLarge">@dimen/shape_extra_large</item>
+        <item name="shapeAppearanceCornerLarge">@dimen/shape_large</item>
+        <item name="shapeAppearanceCornerMedium">@dimen/shape_medium</item>
+        <item name="shapeAppearanceCornerSmall">@dimen/shape_small</item>
+
+        <!-- Window -->
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
+
     </style>
-    
-    <!-- Theme 1: Default (Brown/Orange Dark) -->
+
+    <!-- Theme Default (Brown / Orange Expressive) -->
     <style name="Theme.MediaInfo.Default" parent="Theme.MediaInfo.Base">
-        <item name="colorPrimary">@color/theme_default_background</item>
-        <item name="colorPrimaryVariant">@color/theme_default_background</item>
-        <item name="colorOnPrimary">@color/theme_default_text_primary</item>
-        <item name="android:colorBackground">@color/theme_default_background</item>
+
+        <item name="colorPrimaryContainer">@color/theme_default_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/theme_default_on_primary_container</item>
+
         <item name="colorSurface">@color/theme_default_surface</item>
         <item name="colorOnSurface">@color/theme_default_text_primary</item>
-        <item name="android:textColorPrimary">@color/theme_default_text_primary</item>
-        <item name="android:textColorSecondary">@color/theme_default_text_secondary</item>
+
         <item name="android:windowBackground">@color/theme_default_background</item>
+
     </style>
-    
-    <!-- Theme 2: Pure Dark (Black/Grey) -->
+
+    <!-- Theme Dark (Pure Dark M3) -->
     <style name="Theme.MediaInfo.Dark" parent="Theme.MediaInfo.Base">
-        <item name="colorPrimary">@color/theme_dark_background</item>
-        <item name="colorPrimaryVariant">@color/theme_dark_background</item>
-        <item name="colorOnPrimary">@color/theme_dark_text_primary</item>
-        <item name="android:colorBackground">@color/theme_dark_background</item>
+
+        <item name="colorPrimaryContainer">@color/theme_dark_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/theme_dark_on_primary_container</item>
+
         <item name="colorSurface">@color/theme_dark_surface</item>
         <item name="colorOnSurface">@color/theme_dark_text_primary</item>
-        <item name="android:textColorPrimary">@color/theme_dark_text_primary</item>
-        <item name="android:textColorSecondary">@color/theme_dark_text_secondary</item>
+
         <item name="android:windowBackground">@color/theme_dark_background</item>
+
     </style>
-    
-    <!-- Default Theme (Brown/Orange) -->
+
+    <!-- Theme activo -->
     <style name="Theme.MediaInfo" parent="Theme.MediaInfo.Default" />
+
 </resources>

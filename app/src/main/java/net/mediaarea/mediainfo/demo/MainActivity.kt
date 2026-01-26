@@ -419,10 +419,10 @@ class MainActivity : AppCompatActivity() {
         
         lifecycleScope.launch {
             try {
-                // Pasar URL completa para que MediaInfo la use como "Complete name"
+                // Changed parameter name from onProgress to progressCallback
                 val result = MediaInfoStreamHelper.analyzeFromStreamIncremental(
                     url,
-                    onProgress = { bytesRead, totalBytes, status ->
+                    progressCallback = { bytesRead: Long, totalBytes: Long?, status: String ->
                         lifecycleScope.launch(Dispatchers.Main) {
                             val progress = if (totalBytes != null && totalBytes > 0) {
                                 ((bytesRead * 100) / totalBytes).toInt()

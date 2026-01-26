@@ -1,118 +1,37 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
     
-    <!-- Base application theme -->
-    <style name="Theme.MediaInfo" parent="Theme.MaterialComponents.DayNight.DarkActionBar">
-        <!-- Primary brand color -->
-        <item name="colorPrimary">@color/md_theme_primary</item>
-        <item name="colorPrimaryVariant">@color/md_theme_primary_dark</item>
-        <item name="colorOnPrimary">@color/md_theme_on_primary</item>
-        
-        <!-- Secondary brand color -->
-        <item name="colorSecondary">@color/md_theme_secondary</item>
-        <item name="colorSecondaryVariant">@color/md_theme_secondary_dark</item>
-        <item name="colorOnSecondary">@color/md_theme_on_secondary</item>
-        
-        <!-- Status bar color -->
-        <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
-        
-        <!-- Customize your theme here -->
+    <!-- Base Theme -->
+    <style name="Theme.MediaInfo.Base" parent="Theme.MaterialComponents.DayNight.DarkActionBar">
         <item name="android:fontFamily">@font/google_sans_font_family</item>
         <item name="fontFamily">@font/google_sans_font_family</item>
-        
-        <!-- Text appearances -->
-        <item name="textAppearanceHeadline1">@style/TextAppearance.MediaInfo.Headline1</item>
-        <item name="textAppearanceHeadline2">@style/TextAppearance.MediaInfo.Headline2</item>
-        <item name="textAppearanceHeadline3">@style/TextAppearance.MediaInfo.Headline3</item>
-        <item name="textAppearanceHeadline4">@style/TextAppearance.MediaInfo.Headline4</item>
-        <item name="textAppearanceHeadline5">@style/TextAppearance.MediaInfo.Headline5</item>
-        <item name="textAppearanceHeadline6">@style/TextAppearance.MediaInfo.Headline6</item>
-        <item name="textAppearanceBody1">@style/TextAppearance.MediaInfo.Body1</item>
-        <item name="textAppearanceBody2">@style/TextAppearance.MediaInfo.Body2</item>
-        <item name="textAppearanceButton">@style/TextAppearance.MediaInfo.Button</item>
-        <item name="textAppearanceCaption">@style/TextAppearance.MediaInfo.Caption</item>
-        
-        <!-- Button style -->
-        <item name="materialButtonStyle">@style/Widget.MediaInfo.Button</item>
+        <item name="android:statusBarColor">?attr/colorPrimary</item>
     </style>
     
-    <!-- Text Appearances -->
-    <style name="TextAppearance.MediaInfo.Headline1" parent="TextAppearance.MaterialComponents.Headline1">
-        <item name="fontFamily">@font/google_sans_font_family</item>
-        <item name="android:fontFamily">@font/google_sans_font_family</item>
-        <item name="android:textStyle">bold</item>
+    <!-- Theme 1: Default (Brown/Orange Dark) -->
+    <style name="Theme.MediaInfo.Default" parent="Theme.MediaInfo.Base">
+        <item name="colorPrimary">@color/theme_default_primary</item>
+        <item name="colorPrimaryVariant">@color/theme_default_background</item>
+        <item name="colorOnPrimary">@color/theme_default_on_primary</item>
+        <item name="android:colorBackground">@color/theme_default_background</item>
+        <item name="colorSurface">@color/theme_default_surface</item>
+        <item name="colorOnSurface">@color/theme_default_text_primary</item>
+        <item name="android:textColorPrimary">@color/theme_default_text_primary</item>
+        <item name="android:textColorSecondary">@color/theme_default_text_secondary</item>
     </style>
     
-    <style name="TextAppearance.MediaInfo.Headline2" parent="TextAppearance.MaterialComponents.Headline2">
-        <item name="fontFamily">@font/google_sans_font_family</item>
-        <item name="android:fontFamily">@font/google_sans_font_family</item>
-        <item name="android:textStyle">bold</item>
+    <!-- Theme 2: Pure Dark (Black/Grey) -->
+    <style name="Theme.MediaInfo.Dark" parent="Theme.MediaInfo.Base">
+        <item name="colorPrimary">@color/theme_dark_primary</item>
+        <item name="colorPrimaryVariant">@color/theme_dark_background</item>
+        <item name="colorOnPrimary">@color/theme_dark_on_primary</item>
+        <item name="android:colorBackground">@color/theme_dark_background</item>
+        <item name="colorSurface">@color/theme_dark_surface</item>
+        <item name="colorOnSurface">@color/theme_dark_text_primary</item>
+        <item name="android:textColorPrimary">@color/theme_dark_text_primary</item>
+        <item name="android:textColorSecondary">@color/theme_dark_text_secondary</item>
     </style>
     
-    <style name="TextAppearance.MediaInfo.Headline3" parent="TextAppearance.MaterialComponents.Headline3">
-        <item name="fontFamily">@font/google_sans_font_family</item>
-        <item name="android:fontFamily">@font/google_sans_font_family</item>
-        <item name="android:textStyle">bold</item>
-    </style>
-    
-    <style name="TextAppearance.MediaInfo.Headline4" parent="TextAppearance.MaterialComponents.Headline4">
-        <item name="fontFamily">@font/google_sans_font_family</item>
-        <item name="android:fontFamily">@font/google_sans_font_family</item>
-        <item name="android:textStyle">bold</item>
-    </style>
-    
-    <style name="TextAppearance.MediaInfo.Headline5" parent="TextAppearance.MaterialComponents.Headline5">
-        <item name="fontFamily">@font/google_sans_font_family</item>
-        <item name="android:fontFamily">@font/google_sans_font_family</item>
-        <item name="android:textStyle">bold</item>
-    </style>
-    
-    <style name="TextAppearance.MediaInfo.Headline6" parent="TextAppearance.MaterialComponents.Headline6">
-        <item name="fontFamily">@font/google_sans_font_family</item>
-        <item name="android:fontFamily">@font/google_sans_font_family</item>
-        <item name="android:textStyle">bold</item>
-    </style>
-    
-    <style name="TextAppearance.MediaInfo.Body1" parent="TextAppearance.MaterialComponents.Body1">
-        <item name="fontFamily">@font/google_sans_font_family</item>
-        <item name="android:fontFamily">@font/google_sans_font_family</item>
-    </style>
-    
-    <style name="TextAppearance.MediaInfo.Body2" parent="TextAppearance.MaterialComponents.Body2">
-        <item name="fontFamily">@font/google_sans_font_family</item>
-        <item name="android:fontFamily">@font/google_sans_font_family</item>
-    </style>
-    
-    <style name="TextAppearance.MediaInfo.Button" parent="TextAppearance.MaterialComponents.Button">
-        <item name="fontFamily">@font/google_sans_font_family</item>
-        <item name="android:fontFamily">@font/google_sans_font_family</item>
-        <item name="android:textStyle">bold</item>
-        <item name="android:textAllCaps">false</item>
-    </style>
-    
-    <style name="TextAppearance.MediaInfo.Caption" parent="TextAppearance.MaterialComponents.Caption">
-        <item name="fontFamily">@font/google_sans_font_family</item>
-        <item name="android:fontFamily">@font/google_sans_font_family</item>
-    </style>
-    
-    <!-- Button Widget -->
-    <style name="Widget.MediaInfo.Button" parent="Widget.MaterialComponents.Button">
-        <item name="android:fontFamily">@font/google_sans_font_family</item>
-        <item name="fontFamily">@font/google_sans_font_family</item>
-        <item name="android:textStyle">bold</item>
-        <item name="android:textAllCaps">false</item>
-        <item name="cornerRadius">12dp</item>
-        <item name="android:paddingTop">12dp</item>
-        <item name="android:paddingBottom">12dp</item>
-    </style>
-    
-    <!-- Outlined Button -->
-    <style name="Widget.MediaInfo.Button.Outlined" parent="Widget.MaterialComponents.Button.OutlinedButton">
-        <item name="android:fontFamily">@font/google_sans_font_family</item>
-        <item name="fontFamily">@font/google_sans_font_family</item>
-        <item name="android:textStyle">bold</item>
-        <item name="android:textAllCaps">false</item>
-        <item name="cornerRadius">12dp</item>
-        <item name="strokeWidth">2dp</item>
-    </style>
+    <!-- Default Theme (Brown/Orange) -->
+    <style name="Theme.MediaInfo" parent="Theme.MediaInfo.Default" />
 </resources>

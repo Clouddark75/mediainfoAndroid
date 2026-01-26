@@ -37,6 +37,7 @@ class MainActivity : AppCompatActivity() {
     private var currentTheme = "default"
     private var currentOutput = ""
     private var currentFileName = ""
+    private var trimSpaces = false
     
     private val pickMediaLauncher = registerForActivityResult(
         ActivityResultContracts.OpenDocument()
@@ -59,6 +60,7 @@ class MainActivity : AppCompatActivity() {
         
         // Cargar formato guardado
         currentFormat = prefs.getString("format", "HTML") ?: "HTML"
+        trimSpaces = prefs.getBoolean("trim_spaces", false)
         
         // Manejar intent de apertura
         handleIntent(intent)
@@ -89,20 +91,29 @@ class MainActivity : AppCompatActivity() {
         val popup = PopupMenu(this, view)
         popup.menuInflater.inflate(R.menu.menu_main, popup.menu)
         
-        // Marcar formato actual
-        when (currentFormat) {
-            "Text" -> popup.menu.findItem(R.id.format_text)?.isChecked = true
-            "HTML" -> popup.menu.findItem(R.id.format_html)?.isChecked = true
-            "JSON" -> popup.menu.findItem(R.id.format_json)?.isChecked = true
-            "XML" -> popup.menu.findItem(R.id.format_xml)?.isChecked = true
-            "PBCore" -> popup.menu.findItem(R.id.format_pbcore)?.isChecked = true
-            "EBUCore" -> popup.menu.findItem(R.id.format_ebucore)?.isChecked = true
+        // Marcar formato actual con checkable behavior
+        popup.menu.findItem(R.id.menu_output_format)?.subMenu?.apply {
+            setGroupCheckable(0, true, true)
+            when (currentFormat) {
+                "Text" -> findItem(R.id.format_text)?.isChecked = true
+                "HTML" -> findItem(R.id.format_html)?.isChecked = true
+                "JSON" -> findItem(R.id.format_json)?.isChecked = true
+                "XML" -> findItem(R.id.format_xml)?.isChecked = true
+                "PBCore" -> findItem(R.id.format_pbcore)?.isChecked = true
+                "EBUCore" -> findItem(R.id.format_ebucore)?.isChecked = true
+            }
         }
         
-        // Marcar tema actual
-        when (currentTheme) {
-            "default" -> popup.menu.findItem(R.id.theme_default)?.isChecked = true
-            "dark" -> popup.menu.findItem(R.id.theme_dark)?.isChecked = true
+        // Marcar trim spaces
+        popup.menu.findItem(R.id.menu_trim_spaces)?.isChecked = trimSpaces
+        
+        // Marcar tema actual con checkable behavior
+        popup.menu.findItem(R.id.menu_theme)?.subMenu?.apply {
+            setGroupCheckable(0, true, true)
+            when (currentTheme) {
+                "default" -> findItem(R.id.theme_default)?.isChecked = true
+                "dark" -> findItem(R.id.theme_dark)?.isChecked = true
+            }
         }
         
         popup.setOnMenuItemClickListener { item ->
@@ -137,6 +148,10 @@ class MainActivity : AppCompatActivity() {
                 }
                 R.id.format_ebucore -> {
                     changeFormat("EBUCore")
+                    true
+                }
+                R.id.menu_trim_spaces -> {
+                    toggleTrimSpaces()
                     true
                 }
                 R.id.menu_copy_clipboard -> {
@@ -196,6 +211,23 @@ class MainActivity : AppCompatActivity() {
         Toast.makeText(this, getString(R.string.format_changed, format), Toast.LENGTH_SHORT).show()
         
         // Re-renderizar con el nuevo formato si hay datos
+        if (currentOutput.isNotEmpty()) {
+            refreshDisplay()
+        }
+    }
+    
+    private fun toggleTrimSpaces() {
+        trimSpaces = !trimSpaces
+        prefs.edit().putBoolean("trim_spaces", trimSpaces).apply()
+        
+        val message = if (trimSpaces) {
+            getString(R.string.trim_spaces_enabled)
+        } else {
+            getString(R.string.trim_spaces_disabled)
+        }
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+        
+        // Re-renderizar si hay datos
         if (currentOutput.isNotEmpty()) {
             refreshDisplay()
         }
@@ -427,7 +459,7 @@ class MainActivity : AppCompatActivity() {
         
         val formattedOutput = when (currentFormat) {
             "Text", "HTML" -> {
-                MediaInfoHtmlRenderer.parseTextFormat(this, currentOutput, isDarkTheme)
+                MediaInfoHtmlRenderer.parseAndFormat(this, currentOutput, isDarkTheme, trimSpaces)
             }
             "JSON", "XML", "PBCore", "EBUCore" -> {
                 // Para formatos estructurados, mostrar raw

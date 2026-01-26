@@ -16,8 +16,20 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        release {
+            if (System.getenv("SIGNING_KEYSTORE_PATH") != null) {
+                storeFile file(System.getenv("SIGNING_KEYSTORE_PATH"))
+                storePassword System.getenv("SIGNING_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("SIGNING_KEY_ALIAS")
+                keyPassword System.getenv("SIGNING_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile(
                 'proguard-android-optimize.txt'
@@ -40,20 +52,12 @@ android {
 }
 
 dependencies {
-
-    // 🔽 AUTO-SELECCIÓN: AAR (CI) o módulo (local)
     def prebuiltAarDir = file("${rootProject.projectDir}/mediainfo-lib/prebuilt")
     def forceAar = System.getenv("USE_PREBUILT_AAR") == "true"
 
-    if ((forceAar || prebuiltAarDir.exists()) &&
-        prebuiltAarDir.listFiles()?.length > 0) {
-
-        println("▶ Using MediaInfo PREBUILT AAR")
+    if ((forceAar || prebuiltAarDir.exists()) && prebuiltAarDir.listFiles()?.length > 0) {
         implementation fileTree(dir: prebuiltAarDir, include: ["*.aar"])
-
     } else {
-
-        println("▶ Using MediaInfo SOURCE module")
         implementation project(":mediainfo-lib")
     }
 
@@ -63,10 +67,5 @@ dependencies {
     implementation 'com.google.android.material:material:1.12.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.2.0'
     implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.8.7'
-
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
-
-    testImplementation 'junit:junit:4.13.2'
-    androidTestImplementation 'androidx.test.ext:junit:1.2.1'
-    androidTestImplementation 'androidx.test.espresso:espresso-core:3.6.1'
 }

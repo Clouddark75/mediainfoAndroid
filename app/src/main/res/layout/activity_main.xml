@@ -67,11 +67,11 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:padding="16dp"
-                android:textSize="13sp"
+                android:textSize="14sp"
                 android:textColor="?android:attr/textColorPrimary"
-                android:fontFamily="monospace"
+                android:fontFamily="@font/google_sans_font_family"
                 android:text="@string/no_file_loaded"
-                android:lineSpacingExtra="4dp"
+                android:lineSpacingExtra="6dp"
                 android:textIsSelectable="true" />
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>

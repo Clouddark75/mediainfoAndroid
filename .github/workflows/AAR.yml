@@ -1,0 +1,47 @@
+name: Android AAR Release
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "mediainfo-lib/**"
+      - ".github/workflows/android-aar-release.yml"
+
+jobs:
+  build-aar:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: gradle
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install NDK
+        run: |
+          echo "y" | sdkmanager --install "ndk;27.2.12479018"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> $GITHUB_ENV
+
+      - name: Install CMake
+        run: echo "y" | sdkmanager --install "cmake;3.22.1"
+
+      - run: chmod +x gradlew
+
+      - name: Build AAR (Release)
+        run: ./gradlew :mediainfo-lib:assembleRelease --no-daemon
+
+      - name: Publish AAR as GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: aar-latest
+          name: "MediaInfo AAR (Latest)"
+          files: mediainfo-lib/build/outputs/aar/*.aar
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

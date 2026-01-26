@@ -1,6 +1,7 @@
 package net.mediaarea.mediainfo.demo
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
@@ -35,11 +36,91 @@ class MainActivity : AppCompatActivity() {
         
         setupUI()
         checkPermissions()
+        
+        // Manejar intent de apertura
+        handleIntent(intent)
+    }
+    
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleIntent(intent)
+    }
+    
+    /**
+     * Maneja intents cuando la app se abre con un archivo o URL
+     */
+    private fun handleIntent(intent: Intent?) {
+        intent ?: return
+        
+        when (intent.action) {
+            Intent.ACTION_VIEW -> {
+                // Archivo o URL abierta directamente
+                intent.data?.let { uri ->
+                    handleUri(uri)
+                }
+            }
+            Intent.ACTION_SEND -> {
+                // Archivo compartido con la app
+                if (intent.type?.startsWith("text/") == true) {
+                    // URL compartida como texto
+                    val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
+                    sharedText?.let { url ->
+                        if (url.startsWith("http://") || url.startsWith("https://")) {
+                            binding.etUrl.setText(url)
+                            Toast.makeText(this, "URL cargada. Presione 'Streaming' para analizar", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                } else {
+                    // Archivo multimedia compartido
+                    (intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM))?.let { uri ->
+                        handleUri(uri)
+                    }
+                }
+            }
+            Intent.ACTION_SEND_MULTIPLE -> {
+                // Múltiples archivos compartidos
+                intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)?.let { uris ->
+                    if (uris.isNotEmpty()) {
+                        handleUri(uris[0]) // Analizar el primero
+                        if (uris.size > 1) {
+                            Toast.makeText(
+                                this,
+                                "Múltiples archivos detectados. Analizando el primero.",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    /**
+     * Determina si el URI es local o remoto y lo procesa
+     */
+    private fun handleUri(uri: Uri) {
+        when (uri.scheme) {
+            "http", "https", "rtsp", "rtmp", "mms", "ftp", "ftps", "sftp" -> {
+                // URL remota
+                binding.etUrl.setText(uri.toString())
+                Toast.makeText(this, "URL cargada: ${uri.toString()}", Toast.LENGTH_SHORT).show()
+                // Auto-iniciar análisis
+                analyzeFromUrlIncremental(uri.toString())
+            }
+            "file", "content" -> {
+                // Archivo local
+                Toast.makeText(this, "Analizando archivo local...", Toast.LENGTH_SHORT).show()
+                analyzeLocalFile(uri)
+            }
+            else -> {
+                Toast.makeText(this, "Esquema no soportado: ${uri.scheme}", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
     
     private fun setupUI() {
         binding.btnPickFile.setOnClickListener {
-            pickMediaLauncher.launch(arrayOf("video/*", "audio/*"))
+            pickMediaLauncher.launch(arrayOf("video/*", "audio/*", "image/*", "application/*"))
         }
         
         binding.btnAnalyzeUrlIncremental.setOnClickListener {
@@ -78,7 +159,11 @@ class MainActivity : AppCompatActivity() {
                 != PackageManager.PERMISSION_GRANTED) {
                 ActivityCompat.requestPermissions(
                     this,
-                    arrayOf(Manifest.permission.READ_MEDIA_VIDEO, Manifest.permission.READ_MEDIA_AUDIO),
+                    arrayOf(
+                        Manifest.permission.READ_MEDIA_VIDEO,
+                        Manifest.permission.READ_MEDIA_AUDIO,
+                        Manifest.permission.READ_MEDIA_IMAGES
+                    ),
                     100
                 )
             }
@@ -98,6 +183,7 @@ class MainActivity : AppCompatActivity() {
         binding.progressBar.visibility = android.view.View.VISIBLE
         binding.progressBar.isIndeterminate = true
         binding.tvOutput.text = "Analizando archivo local..."
+        binding.tvStats.text = "📁 Archivo: ${uri.lastPathSegment ?: "desconocido"}"
         
         lifecycleScope.launch(Dispatchers.IO) {
             try {
@@ -110,12 +196,14 @@ class MainActivity : AppCompatActivity() {
                 
                 withContext(Dispatchers.Main) {
                     binding.progressBar.visibility = android.view.View.GONE
+                    binding.tvStats.text = "✅ Análisis completado"
                     binding.tvOutput.text = result
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
                 withContext(Dispatchers.Main) {
                     binding.progressBar.visibility = android.view.View.GONE
+                    binding.tvStats.text = "❌ Error en el análisis"
                     Toast.makeText(this@MainActivity, "Error: ${e.message}", Toast.LENGTH_LONG).show()
                 }
             }

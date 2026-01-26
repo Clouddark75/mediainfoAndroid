@@ -2,16 +2,14 @@
 <resources>
 
     <!-- =============================== -->
-    <!-- THEME DEFAULT (Brown / Orange) -->
+    <!-- MATERIAL 3 – LIGHT / DEFAULT   -->
     <!-- =============================== -->
 
-    <!-- Primary -->
     <color name="md_theme_primary">#FFAB91</color>
     <color name="md_theme_onPrimary">#3D1C0C</color>
     <color name="md_theme_primaryContainer">#5C2A16</color>
     <color name="md_theme_onPrimaryContainer">#FFDBCF</color>
 
-    <!-- Background / Surface -->
     <color name="md_theme_background">#1A1412</color>
     <color name="md_theme_onBackground">#E6E1E5</color>
 
@@ -20,12 +18,11 @@
     <color name="md_theme_surfaceVariant">#3A3230</color>
     <color name="md_theme_onSurfaceVariant">#D6C4C2</color>
 
-    <!-- Outline / Divider -->
     <color name="md_theme_outline">#8D7F7B</color>
 
 
     <!-- =============================== -->
-    <!-- THEME DARK (Pure Dark)          -->
+    <!-- MATERIAL 3 – DARK              -->
     <!-- =============================== -->
 
     <color name="md_theme_dark_primary">#FFFFFF</color>
@@ -45,7 +42,7 @@
 
 
     <!-- =============================== -->
-    <!-- STATUS / SEMANTIC COLORS       -->
+    <!-- SEMANTIC / STATUS COLORS       -->
     <!-- =============================== -->
 
     <color name="md_status_success">#4CAF50</color>
@@ -55,7 +52,7 @@
 
 
     <!-- =============================== -->
-    <!-- COMMON                          -->
+    <!-- COMMON                         -->
     <!-- =============================== -->
 
     <color name="white">#FFFFFF</color>

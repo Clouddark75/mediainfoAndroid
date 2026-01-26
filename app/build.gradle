@@ -13,43 +13,58 @@ android {
         targetSdk 36
         versionCode 1
         versionName "1.0.0"
-
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
         release {
             minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            proguardFiles getDefaultProguardFile(
+                'proguard-android-optimize.txt'
+            ), 'proguard-rules.pro'
         }
     }
-    
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_21
         targetCompatibility JavaVersion.VERSION_21
     }
-    
+
     kotlinOptions {
         jvmTarget = '21'
     }
-    
+
     buildFeatures {
         viewBinding true
     }
 }
 
 dependencies {
-    implementation project(':mediainfo-lib')
-    
+
+    // 🔽 AUTO-SELECCIÓN: AAR (CI) o módulo (local)
+    def prebuiltAarDir = file("${rootProject.projectDir}/mediainfo-lib/prebuilt")
+    def forceAar = System.getenv("USE_PREBUILT_AAR") == "true"
+
+    if ((forceAar || prebuiltAarDir.exists()) &&
+        prebuiltAarDir.listFiles()?.length > 0) {
+
+        println("▶ Using MediaInfo PREBUILT AAR")
+        implementation fileTree(dir: prebuiltAarDir, include: ["*.aar"])
+
+    } else {
+
+        println("▶ Using MediaInfo SOURCE module")
+        implementation project(":mediainfo-lib")
+    }
+
     implementation 'androidx.core:core-ktx:1.15.0'
     implementation 'androidx.appcompat:appcompat:1.7.0'
     implementation 'com.google.android.material:material:1.12.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.2.0'
     implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.8.7'
-    
-    // Para manejo de HTTP/HTTPS
+
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
-    
+
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.2.1'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.6.1'

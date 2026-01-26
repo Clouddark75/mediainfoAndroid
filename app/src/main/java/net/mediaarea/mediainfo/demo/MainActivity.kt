@@ -37,6 +37,7 @@ class MainActivity : AppCompatActivity() {
     private var currentTheme = "default"
     private var currentOutput = ""
     private var currentFileName = ""
+    private var currentUri: Uri? = null
     private var trimSpaces = false
     
     private val pickMediaLauncher = registerForActivityResult(
@@ -210,9 +211,9 @@ class MainActivity : AppCompatActivity() {
         prefs.edit().putString("format", format).apply()
         Toast.makeText(this, getString(R.string.format_changed, format), Toast.LENGTH_SHORT).show()
         
-        // Re-renderizar con el nuevo formato si hay datos
-        if (currentOutput.isNotEmpty()) {
-            refreshDisplay()
+        // Re-analizar archivo si existe
+        currentUri?.let { uri ->
+            analyzeLocalFile(uri)
         }
     }
     
@@ -227,8 +228,8 @@ class MainActivity : AppCompatActivity() {
         }
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
         
-        // Re-renderizar si hay datos
-        if (currentOutput.isNotEmpty()) {
+        // Re-renderizar SOLO si es Text/HTML
+        if (currentOutput.isNotEmpty() && (currentFormat == "Text" || currentFormat == "HTML")) {
             refreshDisplay()
         }
     }
@@ -358,7 +359,9 @@ class MainActivity : AppCompatActivity() {
         binding.progressBar.isIndeterminate = true
         binding.tvOutput.text = getString(R.string.analyzing)
         
-        currentFileName = uri.lastPathSegment ?: "Unknown"
+        // Obtener nombre limpio del archivo
+        currentFileName = getCleanFileName(uri)
+        currentUri = uri
         binding.tvSubtitle.text = currentFileName
         binding.tvSubtitle.visibility = View.VISIBLE
         
@@ -367,8 +370,9 @@ class MainActivity : AppCompatActivity() {
                 val pfd: ParcelFileDescriptor? = contentResolver.openFileDescriptor(uri, "r")
                 val fd = pfd?.detachFd() ?: throw Exception(getString(R.string.error_opening_file))
                 
-                // Obtener en formato Text siempre (MediaInfo lo formatea bien)
-                val result = MediaInfoUtil.getMediaInfo(fd, currentFileName, "Text")
+                // Usar formato actual y pasar URI completo para "Complete name"
+                val formatParam = getMediaInfoFormatParam(currentFormat)
+                val result = MediaInfoUtil.getMediaInfo(fd, uri.toString(), formatParam)
                 
                 pfd?.close()
                 
@@ -394,7 +398,8 @@ class MainActivity : AppCompatActivity() {
         binding.progressBar.progress = 0
         binding.tvOutput.text = getString(R.string.analyzing_stream)
         
-        currentFileName = url.substringAfterLast('/').take(50)
+        // Limpiar nombre del archivo del URL
+        currentFileName = getCleanFileNameFromUrl(url)
         binding.tvSubtitle.text = currentFileName
         binding.tvSubtitle.visibility = View.VISIBLE
         
@@ -469,5 +474,50 @@ class MainActivity : AppCompatActivity() {
         }
         
         binding.tvOutput.text = formattedOutput
+    }
+    
+    /**
+     * Obtiene el nombre limpio de un archivo desde un URI
+     */
+    private fun getCleanFileName(uri: Uri): String {
+        return try {
+            contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                val nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                if (nameIndex >= 0 && cursor.moveToFirst()) {
+                    cursor.getString(nameIndex)
+                } else {
+                    uri.lastPathSegment ?: "Unknown"
+                }
+            } ?: uri.lastPathSegment ?: "Unknown"
+        } catch (e: Exception) {
+            uri.lastPathSegment ?: "Unknown"
+        }
+    }
+    
+    /**
+     * Limpia el nombre del archivo de un URL
+     * Decodifica caracteres URL y elimina parámetros de query
+     */
+    private fun getCleanFileNameFromUrl(url: String): String {
+        return try {
+            // Extraer la parte del path después del último "/"
+            val path = url.substringAfterLast('/')
+            
+            // Eliminar parámetros de query (después de "?")
+            val withoutQuery = path.substringBefore('?')
+            
+            // Decodificar caracteres URL (%20 -> espacio, etc.)
+            val decoded = java.net.URLDecoder.decode(withoutQuery, "UTF-8")
+            
+            // Limitar longitud y retornar
+            if (decoded.length > 50) {
+                decoded.take(47) + "..."
+            } else {
+                decoded
+            }
+        } catch (e: Exception) {
+            // Si falla, usar fallback simple
+            url.substringAfterLast('/').substringBefore('?').take(50)
+        }
     }
 }

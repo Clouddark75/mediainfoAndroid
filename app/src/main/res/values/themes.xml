@@ -2,7 +2,8 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Base Material3 Expressive -->
-    <style name="Theme.MediaInfo.Base" parent="Theme.Material3.DynamicColors.DayNight.NoActionBar">
+    <style name="Theme.MediaInfo.Base"
+        parent="Theme.Material3.DynamicColors.DayNight.NoActionBar">
 
         <!-- Tipografía -->
         <item name="android:fontFamily">@font/google_sans_font_family</item>
@@ -11,6 +12,11 @@
         <!-- System bars -->
         <item name="android:statusBarColor">?attr/colorSurface</item>
         <item name="android:navigationBarColor">?attr/colorSurface</item>
+
+        <!-- Window background (Material3 CORRECTO) -->
+        <item name="android:windowBackground">
+            ?attr/colorSurfaceContainerLowest
+        </item>
 
         <!-- Expressive shapes -->
         <item name="shapeAppearanceCornerExtraLarge">@dimen/shape_extra_large</item>
@@ -24,17 +30,7 @@
 
     </style>
 
-    <!-- Theme Default -->
-    <style name="Theme.MediaInfo.Default" parent="Theme.MediaInfo.Base">
-        <item name="android:windowBackground">?attr/colorBackground</item>
-    </style>
-
-    <!-- Theme Dark (opcional, Dynamic Colors ya maneja dark) -->
-    <style name="Theme.MediaInfo.Dark" parent="Theme.MediaInfo.Base">
-        <item name="android:windowBackground">?attr/colorBackground</item>
-    </style>
-
     <!-- Theme activo -->
-    <style name="Theme.MediaInfo" parent="Theme.MediaInfo.Default" />
+    <style name="Theme.MediaInfo" parent="Theme.MediaInfo.Base"/>
 
 </resources>

@@ -1,16 +1,22 @@
 package net.mediaarea.mediainfo.demo
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.ClipData
 import android.content.ClipboardManager
+import android.content.ContentUris
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
+import android.database.Cursor
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Environment
 import android.os.ParcelFileDescriptor
+import android.provider.DocumentsContract
+import android.provider.MediaStore
 import android.view.View
 import android.widget.PopupMenu
 import android.widget.Toast
@@ -33,11 +39,12 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var prefs: SharedPreferences
     
-    private var currentFormat = "HTML"
+    private var currentFormat = "Text"
     private var currentTheme = "default"
     private var currentOutput = ""
     private var currentFileName = ""
     private var currentUri: Uri? = null
+    private var currentStreamUrl: String? = null
     private var trimSpaces = false
     
     private val pickMediaLauncher = registerForActivityResult(
@@ -60,7 +67,7 @@ class MainActivity : AppCompatActivity() {
         checkPermissions()
         
         // Cargar formato guardado
-        currentFormat = prefs.getString("format", "HTML") ?: "HTML"
+        currentFormat = prefs.getString("format", "Text") ?: "Text"
         trimSpaces = prefs.getBoolean("trim_spaces", false)
         
         // Manejar intent de apertura
@@ -211,9 +218,10 @@ class MainActivity : AppCompatActivity() {
         prefs.edit().putString("format", format).apply()
         Toast.makeText(this, getString(R.string.format_changed, format), Toast.LENGTH_SHORT).show()
         
-        // Re-analizar archivo si existe
-        currentUri?.let { uri ->
-            analyzeLocalFile(uri)
+        // Re-analizar archivo o stream según corresponda
+        when {
+            currentUri != null -> analyzeLocalFile(currentUri!!)
+            currentStreamUrl != null -> analyzeFromStream(currentStreamUrl!!)
         }
     }
     
@@ -362,6 +370,7 @@ class MainActivity : AppCompatActivity() {
         // Obtener nombre limpio del archivo
         currentFileName = getCleanFileName(uri)
         currentUri = uri
+        currentStreamUrl = null
         binding.tvSubtitle.text = currentFileName
         binding.tvSubtitle.visibility = View.VISIBLE
         
@@ -370,9 +379,12 @@ class MainActivity : AppCompatActivity() {
                 val pfd: ParcelFileDescriptor? = contentResolver.openFileDescriptor(uri, "r")
                 val fd = pfd?.detachFd() ?: throw Exception(getString(R.string.error_opening_file))
                 
-                // Usar formato actual y pasar URI completo para "Complete name"
+                // Intentar obtener ruta real, si falla usar URI
+                val filePath = getRealPathFromUri(uri) ?: uri.toString()
+                
+                // Usar formato actual
                 val formatParam = getMediaInfoFormatParam(currentFormat)
-                val result = MediaInfoUtil.getMediaInfo(fd, uri.toString(), formatParam)
+                val result = MediaInfoUtil.getMediaInfo(fd, filePath, formatParam)
                 
                 pfd?.close()
                 
@@ -400,21 +412,27 @@ class MainActivity : AppCompatActivity() {
         
         // Limpiar nombre del archivo del URL
         currentFileName = getCleanFileNameFromUrl(url)
+        currentStreamUrl = url
+        currentUri = null
         binding.tvSubtitle.text = currentFileName
         binding.tvSubtitle.visibility = View.VISIBLE
         
         lifecycleScope.launch {
             try {
-                val result = MediaInfoStreamHelper.analyzeFromStreamIncremental(url) { bytesRead, totalBytes, status ->
-                    lifecycleScope.launch(Dispatchers.Main) {
-                        val progress = if (totalBytes != null && totalBytes > 0) {
-                            ((bytesRead * 100) / totalBytes).toInt()
-                        } else {
-                            0
+                // Pasar URL completa para que MediaInfo la use como "Complete name"
+                val result = MediaInfoStreamHelper.analyzeFromStreamIncremental(
+                    url,
+                    onProgress = { bytesRead, totalBytes, status ->
+                        lifecycleScope.launch(Dispatchers.Main) {
+                            val progress = if (totalBytes != null && totalBytes > 0) {
+                                ((bytesRead * 100) / totalBytes).toInt()
+                            } else {
+                                0
+                            }
+                            binding.progressBar.progress = progress
                         }
-                        binding.progressBar.progress = progress
                     }
-                }
+                )
                 
                 withContext(Dispatchers.Main) {
                     binding.progressBar.visibility = View.GONE
@@ -438,17 +456,14 @@ class MainActivity : AppCompatActivity() {
     
     private fun getMediaInfoFormatParam(format: String): String {
         return when (format) {
-            "Text", "HTML" -> "Text"
+            "Text" -> "Text"
+            "HTML" -> "HTML"
             "JSON" -> "JSON"
             "XML" -> "MIXML"
             "PBCore" -> "PBCore"
             "EBUCore" -> "EBUCore"
             else -> "Text"
         }
-    }
-    
-    private fun formatOutput(output: String): String {
-        return output.ifEmpty { getString(R.string.no_file_loaded) }
     }
     
     /**
@@ -463,8 +478,18 @@ class MainActivity : AppCompatActivity() {
         val isDarkTheme = currentTheme == "dark"
         
         val formattedOutput = when (currentFormat) {
-            "Text", "HTML" -> {
+            "Text" -> {
+                // Formatear texto con colores
                 MediaInfoHtmlRenderer.parseAndFormat(this, currentOutput, isDarkTheme, trimSpaces)
+            }
+            "HTML" -> {
+                // HTML generado por MediaInfo - renderizar como HTML
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    android.text.Html.fromHtml(currentOutput, android.text.Html.FROM_HTML_MODE_LEGACY)
+                } else {
+                    @Suppress("DEPRECATION")
+                    android.text.Html.fromHtml(currentOutput)
+                }
             }
             "JSON", "XML", "PBCore", "EBUCore" -> {
                 // Para formatos estructurados, mostrar raw
@@ -519,5 +544,122 @@ class MainActivity : AppCompatActivity() {
             // Si falla, usar fallback simple
             url.substringAfterLast('/').substringBefore('?').take(50)
         }
+    }
+    
+    /**
+     * Intenta obtener la ruta real del archivo desde un URI
+     * Retorna null si no se puede obtener
+     */
+    @SuppressLint("Range")
+    private fun getRealPathFromUri(uri: Uri): String? {
+        return when {
+            // DocumentProvider
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT && DocumentsContract.isDocumentUri(this, uri) -> {
+                when {
+                    // ExternalStorageProvider
+                    isExternalStorageDocument(uri) -> {
+                        val docId = DocumentsContract.getDocumentId(uri)
+                        val split = docId.split(":")
+                        val type = split[0]
+                        
+                        if ("primary".equals(type, ignoreCase = true)) {
+                            "${Environment.getExternalStorageDirectory()}/${split[1]}"
+                        } else {
+                            "/storage/${split[0]}/${split[1]}"
+                        }
+                    }
+                    // DownloadsProvider
+                    isDownloadsDocument(uri) -> {
+                        val id = DocumentsContract.getDocumentId(uri)
+                        
+                        // Si el ID empieza con "raw:", es una ruta directa
+                        if (id.startsWith("raw:")) {
+                            return id.substring(4)
+                        }
+                        
+                        // Intentar obtener desde MediaStore
+                        val contentUriPrefixesToTry = arrayOf(
+                            "content://downloads/public_downloads",
+                            "content://downloads/my_downloads",
+                            "content://downloads/all_downloads"
+                        )
+                        
+                        for (prefix in contentUriPrefixesToTry) {
+                            try {
+                                val contentUri = ContentUris.withAppendedId(Uri.parse(prefix), id.toLong())
+                                val path = getDataColumn(contentUri, null, null)
+                                if (path != null) return path
+                            } catch (e: Exception) {
+                                continue
+                            }
+                        }
+                        null
+                    }
+                    // MediaProvider
+                    isMediaDocument(uri) -> {
+                        val docId = DocumentsContract.getDocumentId(uri)
+                        val split = docId.split(":")
+                        val type = split[0]
+                        
+                        val contentUri = when (type) {
+                            "image" -> MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+                            "video" -> MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+                            "audio" -> MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+                            else -> null
+                        }
+                        
+                        contentUri?.let {
+                            val selection = "_id=?"
+                            val selectionArgs = arrayOf(split[1])
+                            getDataColumn(it, selection, selectionArgs)
+                        }
+                    }
+                    else -> null
+                }
+            }
+            // MediaStore (and general)
+            "content".equals(uri.scheme, ignoreCase = true) -> {
+                getDataColumn(uri, null, null)
+            }
+            // File
+            "file".equals(uri.scheme, ignoreCase = true) -> {
+                uri.path
+            }
+            else -> null
+        }
+    }
+    
+    @SuppressLint("Range")
+    private fun getDataColumn(uri: Uri, selection: String?, selectionArgs: Array<String>?): String? {
+        var cursor: Cursor? = null
+        val column = "_data"
+        val projection = arrayOf(column)
+        
+        try {
+            cursor = contentResolver.query(uri, projection, selection, selectionArgs, null)
+            if (cursor != null && cursor.moveToFirst()) {
+                val columnIndex = cursor.getColumnIndex(column)
+                if (columnIndex != -1) {
+                    return cursor.getString(columnIndex)
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        } finally {
+            cursor?.close()
+        }
+        return null
+    }
+    
+    private fun isExternalStorageDocument(uri: Uri): Boolean {
+        return "com.android.externalstorage.documents" == uri.authority
+    }
+    
+    private fun isDownloadsDocument(uri: Uri): Boolean {
+        return "com.android.providers.downloads.documents" == uri.authority
+    }
+    
+    private fun isMediaDocument(uri: Uri): Boolean {
+        return "com.android.providers.media.documents" == uri.authority
     }
 }

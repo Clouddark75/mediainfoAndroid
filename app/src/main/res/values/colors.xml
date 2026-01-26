@@ -1,37 +1,68 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Theme Yotsuba: Default (Brown/Orange Dark) -->
-    <color name="theme_default_primary">#FFAB91</color>
-    <color name="theme_default_background">#1A1412</color>
-    <color name="theme_default_surface">#2A2220</color>
-    <color name="theme_default_surface_variant">#3A3230</color>
-    <color name="theme_default_text_primary">#E6E1E5</color>
-    <color name="theme_default_text_secondary">#D6C4C2</color>
-    <color name="theme_default_text_label">#FFAB91</color>
-    <color name="theme_default_on_primary">#3D1C0C</color>
-    
-    <!-- Theme 2: Pure Dark (Black/Grey) -->
-    <color name="theme_dark_background">#000000</color>
-    <color name="theme_dark_surface">#121212</color>
-    <color name="theme_dark_surface_variant">#1E1E1E</color>
-    <color name="theme_dark_primary">#FFFFFF</color>
-    <color name="theme_dark_on_primary">#000000</color>
-    <color name="theme_dark_text_primary">#FFFFFF</color>
-    <color name="theme_dark_text_secondary">#B0B0B0</color>
-    <color name="theme_dark_text_label">#FFFFFF</color>
-    
-    <!-- Common colors -->
+
+    <!-- =============================== -->
+    <!-- THEME DEFAULT (Brown / Orange) -->
+    <!-- =============================== -->
+
+    <!-- Primary -->
+    <color name="md_theme_primary">#FFAB91</color>
+    <color name="md_theme_onPrimary">#3D1C0C</color>
+    <color name="md_theme_primaryContainer">#5C2A16</color>
+    <color name="md_theme_onPrimaryContainer">#FFDBCF</color>
+
+    <!-- Background / Surface -->
+    <color name="md_theme_background">#1A1412</color>
+    <color name="md_theme_onBackground">#E6E1E5</color>
+
+    <color name="md_theme_surface">#2A2220</color>
+    <color name="md_theme_onSurface">#E6E1E5</color>
+    <color name="md_theme_surfaceVariant">#3A3230</color>
+    <color name="md_theme_onSurfaceVariant">#D6C4C2</color>
+
+    <!-- Outline / Divider -->
+    <color name="md_theme_outline">#8D7F7B</color>
+
+
+    <!-- =============================== -->
+    <!-- THEME DARK (Pure Dark)          -->
+    <!-- =============================== -->
+
+    <color name="md_theme_dark_primary">#FFFFFF</color>
+    <color name="md_theme_dark_onPrimary">#000000</color>
+    <color name="md_theme_dark_primaryContainer">#1E1E1E</color>
+    <color name="md_theme_dark_onPrimaryContainer">#FFFFFF</color>
+
+    <color name="md_theme_dark_background">#000000</color>
+    <color name="md_theme_dark_onBackground">#FFFFFF</color>
+
+    <color name="md_theme_dark_surface">#121212</color>
+    <color name="md_theme_dark_onSurface">#FFFFFF</color>
+    <color name="md_theme_dark_surfaceVariant">#1E1E1E</color>
+    <color name="md_theme_dark_onSurfaceVariant">#B0B0B0</color>
+
+    <color name="md_theme_dark_outline">#4A4A4A</color>
+
+
+    <!-- =============================== -->
+    <!-- STATUS / SEMANTIC COLORS       -->
+    <!-- =============================== -->
+
+    <color name="md_status_success">#4CAF50</color>
+    <color name="md_status_warning">#FFC107</color>
+    <color name="md_status_error">#FFB4AB</color>
+    <color name="md_status_info">#2196F3</color>
+
+
+    <!-- =============================== -->
+    <!-- COMMON                          -->
+    <!-- =============================== -->
+
     <color name="white">#FFFFFF</color>
     <color name="black">#000000</color>
     <color name="transparent">#00000000</color>
-    
-    <!-- Status colors -->
-    <color name="success">#4CAF50</color>
-    <color name="warning">#FFC107</color>
-    <color name="error">#FFB4AB</color>
-    <color name="info">#2196F3</color>
-    
-    <!-- Overlay -->
+
     <color name="overlay_dark">#99000000</color>
     <color name="overlay_light">#99FFFFFF</color>
+
 </resources>

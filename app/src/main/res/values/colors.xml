@@ -1,17 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Theme 1: Default (Brown/Orange Dark) -->
-    <color name="theme_default_background">#2D2418</color>
-    <color name="theme_default_surface">#3D3025</color>
-    <color name="theme_default_primary">#D4A574</color>
-    <color name="theme_default_on_primary">#2D2418</color>
-    <color name="theme_default_text_primary">#FFFFFF</color>
-    <color name="theme_default_text_secondary">#B8B8B8</color>
-    <color name="theme_default_text_label">#D4A574</color>
+    <!-- Theme Yotsuba: Default (Brown/Orange Dark) -->
+    <color name="theme_default_primary">#FFAB91</color>
+    <color name="theme_default_background">#1A1412</color>
+    <color name="theme_default_surface">#2A2220</color>
+    <color name="theme_default_surface_variant">#3A3230</color>
+    <color name="theme_default_text_primary">#E6E1E5</color>
+    <color name="theme_default_text_secondary">#D6C4C2</color>
+    <color name="theme_default_text_label">#FFAB91</color>
+    <color name="theme_default_on_primary">#3D1C0C</color>
     
     <!-- Theme 2: Pure Dark (Black/Grey) -->
-    <color name="theme_dark_background">#121212</color>
-    <color name="theme_dark_surface">#1E1E1E</color>
+    <color name="theme_dark_background">#000000</color>
+    <color name="theme_dark_surface">#121212</color>
+    <color name="theme_dark_surface_variant">#1E1E1E</color>
     <color name="theme_dark_primary">#FFFFFF</color>
     <color name="theme_dark_on_primary">#000000</color>
     <color name="theme_dark_text_primary">#FFFFFF</color>
@@ -26,7 +28,7 @@
     <!-- Status colors -->
     <color name="success">#4CAF50</color>
     <color name="warning">#FFC107</color>
-    <color name="error">#F44336</color>
+    <color name="error">#FFB4AB</color>
     <color name="info">#2196F3</color>
     
     <!-- Overlay -->

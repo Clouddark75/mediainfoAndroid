@@ -1,86 +1,75 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">MediaInfo</string>
-
+    
+    <!-- Menu Items -->
+    <string name="menu_open_file">Open file…</string>
+    <string name="menu_open_stream">Open stream…</string>
+    <string name="menu_output_format">Output format</string>
+    <string name="menu_copy_clipboard">Copy to clipboard</string>
+    <string name="menu_theme">Theme</string>
+    <string name="menu_settings">Settings</string>
+    <string name="menu_about">About</string>
+    <string name="menu_license">License</string>
+    <string name="menu_exit">Exit</string>
+    
+    <!-- Output Formats -->
+    <string name="format_text">Text</string>
+    <string name="format_html">HTML</string>
+    <string name="format_json">JSON</string>
+    <string name="format_xml">XML</string>
+    <string name="format_pbcore">PBCore</string>
+    <string name="format_ebucore">EBUCore</string>
+    
+    <!-- Themes -->
+    <string name="theme_default">Default (Brown)</string>
+    <string name="theme_dark">Pure Dark</string>
+    
     <!-- Main Activity -->
-    <string name="version_label">MediaInfo %1$s</string>
-    <string name="select_local_file">📁 Seleccionar Archivo Local</string>
-    <string name="analyze_from_url_label">O analizar desde URL HTTP/HTTPS:</string>
-    <string name="url_hint">https://example.com/video.mp4</string>
-    <string name="btn_streaming">⚡ Streaming\n(Rápido)</string>
-    <string name="btn_full_download">📥 Descarga\nCompleta</string>
-    <string name="initial_message">Seleccione un archivo o ingrese una URL para comenzar</string>
-
-    <!-- Status Messages -->
-    <string name="analyzing_local_file">Analizando archivo local…</string>
-    <string name="starting_incremental_analysis">Iniciando análisis incremental…</string>
-    <string name="downloading_full_file">Descargando archivo completo…</string>
-    <string name="analysis_complete">✅ Análisis completado</string>
-    <string name="analysis_error">❌ Error en el análisis</string>
-    <string name="download_complete">✅ Descarga completa en %1$.2f segundos</string>
-
+    <string name="no_file_loaded">No file loaded</string>
+    <string name="analyzing">Analyzing…</string>
+    <string name="analysis_complete">Analysis complete</string>
+    
     <!-- Progress Messages -->
-    <string name="file_label">📁 Archivo: %1$s</string>
-    <string name="downloading_progress">Descargando: %1$d%%</string>
-    <string name="processing_data">Procesando: %1$s (%2$d%%)</string>
-
-    <!-- Statistics -->
-    <string name="stats_completed_time">✅ Análisis completado en %1$.2f segundos</string>
-    <string name="stats_downloaded_percent">📊 Descargado: %1$d%% del archivo</string>
-    <string name="stats_data_processed">💾 Datos procesados: %1$s</string>
-    <string name="stats_total_size">📁 Tamaño total: %1$s</string>
-    <string name="stats_saved">⚡ Ahorro: %1$s (%2$d%%)</string>
-
+    <string name="analyzing_stream">Analyzing stream…</string>
+    <string name="downloading_data">Downloading: %s</string>
+    <string name="processing_data">Processing data…</string>
+    
     <!-- Toast Messages -->
-    <string name="enter_valid_url">Ingrese una URL válida</string>
-    <string name="url_loaded">URL cargada. Presione \'Streaming\' para analizar</string>
-    <string name="url_loaded_simple">URL cargada: %1$s</string>
-    <string name="analyzing_local">Analizando archivo local…</string>
-    <string name="scheme_not_supported">Esquema no soportado: %1$s</string>
-    <string name="multiple_files_detected">
-        Múltiples archivos detectados. Analizando el primero.
-    </string>
-    <string name="analysis_completed_toast">
-        ¡Análisis completado! Solo se descargó el %1$d%% del archivo
-    </string>
-    <string name="error_format">Error: %1$s</string>
-
-    <!-- Errors -->
-    <string name="error_opening_file">No se pudo abrir el archivo</string>
-    <string name="error_http">Error HTTP: %1$d - %2$s</string>
-    <string name="error_no_stream">No se pudo obtener el stream</string>
-    <string name="error_mediainfo_open">
-        No se pudo abrir el archivo con MediaInfo
-    </string>
-    <string name="error_unknown">Error desconocido</string>
-
-    <!-- Summary -->
-    <string name="summary_header">═══ RESUMEN DEL ANÁLISIS ═══</string>
-    <string name="summary_downloaded">
-        Descargado: %1$s de %2$s (%3$d%%)
-    </string>
-    <string name="summary_format">Formato: %1$s</string>
-    <string name="summary_duration">Duración: %1$s</string>
-    <string name="summary_filesize">Tamaño: %1$s</string>
-    <string name="summary_bitrate">Bitrate: %1$s</string>
-    <string name="summary_video">Video: %1$s</string>
-    <string name="summary_audio">Audio: %1$s</string>
-    <string name="summary_full_info">═══ INFORMACIÓN COMPLETA ═══</string>
-
+    <string name="copied_to_clipboard">Copied to clipboard</string>
+    <string name="no_data_to_copy">No data to copy</string>
+    <string name="theme_changed">Theme changed to %s</string>
+    <string name="format_changed">Format changed to %s</string>
+    <string name="enter_stream_url">Enter stream URL</string>
+    <string name="invalid_url">Invalid URL</string>
+    <string name="error_opening_file">Error opening file</string>
+    <string name="error_analyzing">Error analyzing media</string>
+    
+    <!-- Dialogs -->
+    <string name="dialog_open_stream_title">Open Stream</string>
+    <string name="dialog_open_stream_hint">https://example.com/video.mp4</string>
+    <string name="dialog_cancel">Cancel</string>
+    <string name="dialog_ok">OK</string>
+    
+    <!-- About -->
+    <string name="about_title">About MediaInfo</string>
+    <string name="about_version">Version %s</string>
+    <string name="about_description">MediaInfo is a tool for analyzing multimedia files and streams.\n\nBased on MediaInfoLib by MediaArea.net</string>
+    
+    <!-- License -->
+    <string name="license_title">License</string>
+    <string name="license_text">BSD-2-Clause License\n\nCopyright (c) MediaArea.net SARL. All Rights Reserved.</string>
+    
+    <!-- Sections -->
+    <string name="section_general">General</string>
+    <string name="section_video">Video</string>
+    <string name="section_audio">Audio</string>
+    <string name="section_text">Text</string>
+    <string name="section_menu">Menu</string>
+    
     <!-- Units -->
-    <string name="bytes">%1$d B</string>
-    <string name="kilobytes">%1$.2f KB</string>
-    <string name="megabytes">%1$.2f MB</string>
-    <string name="gigabytes">%1$.2f GB</string>
-    <string name="unknown_size">desconocido</string>
-
-    <!-- Content Descriptions -->
-    <string name="cd_app_icon">Icono de MediaInfo</string>
-    <string name="cd_progress_bar">Barra de progreso de análisis</string>
-
-    <!-- Permissions -->
-    <string name="permission_required">Permisos requeridos</string>
-    <string name="permission_storage_rationale">
-        MediaInfo necesita acceso al almacenamiento para analizar archivos multimedia
-    </string>
+    <string name="bytes">%d B</string>
+    <string name="kilobytes">%.2f KB</string>
+    <string name="megabytes">%.2f MB</string>
+    <string name="gigabytes">%.2f GB</string>
 </resources>

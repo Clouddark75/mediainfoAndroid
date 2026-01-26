@@ -1,234 +1,90 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout 
+<androidx.coordinatorlayout.widget.CoordinatorLayout 
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="16dp"
-    android:background="@color/md_theme_background"
-    tools:context=".MainActivity">
+    android:background="?attr/colorPrimary">
 
-    <!-- Header con versión -->
-    <com.google.android.material.card.MaterialCardView
-        android:id="@+id/cardHeader"
-        android:layout_width="0dp"
+    <!-- AppBar -->
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appBarLayout"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        app:cardElevation="2dp"
-        app:cardCornerRadius="12dp"
-        app:cardBackgroundColor="@color/google_blue"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
-        
+        android:background="?attr/colorPrimary"
+        app:elevation="0dp">
+
+        <androidx.appcompat.widget.Toolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="?attr/colorPrimary"
+            app:titleTextColor="?attr/colorOnPrimary"
+            app:title="@string/app_name">
+            
+            <!-- Subtitle con nombre de archivo -->
+            <TextView
+                android:id="@+id/tvSubtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="28dp"
+                android:textSize="12sp"
+                android:textColor="?attr/colorOnPrimary"
+                android:alpha="0.7"
+                android:fontFamily="@font/google_sans_font_family"
+                android:singleLine="true"
+                android:ellipsize="middle"
+                tools:text="video.mp4" />
+        </androidx.appcompat.widget.Toolbar>
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <!-- Main Content -->
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="?android:attr/colorBackground"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="16dp">
-            
-            <TextView
-                android:id="@+id/tvAppName"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/app_name"
-                android:textColor="@color/white"
-                android:textSize="24sp"
-                android:fontFamily="@font/google_sans_font_family"
-                android:textStyle="bold" />
-            
-            <TextView
-                android:id="@+id/tvVersion"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="MediaInfo Version"
-                android:textColor="@color/white"
-                android:textSize="14sp"
-                android:fontFamily="@font/google_sans_font_family"
-                android:alpha="0.9" />
-        </LinearLayout>
-    </com.google.android.material.card.MaterialCardView>
+            android:orientation="vertical">
 
-    <!-- Botón de selección de archivo local -->
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/btnPickFile"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:text="@string/select_local_file"
-        android:textSize="16sp"
-        android:fontFamily="@font/google_sans_font_family"
-        android:textStyle="bold"
-        app:icon="@android:drawable/ic_menu_gallery"
-        app:iconGravity="textStart"
-        app:cornerRadius="12dp"
-        style="@style/Widget.MediaInfo.Button"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/cardHeader" />
-
-    <!-- Separador -->
-    <TextView
-        android:id="@+id/tvOrLabel"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="20dp"
-        android:text="@string/analyze_from_url_label"
-        android:textSize="14sp"
-        android:textColor="@color/gray_700"
-        android:fontFamily="@font/google_sans_font_family"
-        android:textStyle="bold"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/btnPickFile" />
-
-    <!-- Campo de URL -->
-    <com.google.android.material.card.MaterialCardView
-        android:id="@+id/cardUrl"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        app:cardElevation="1dp"
-        app:cardCornerRadius="12dp"
-        app:strokeWidth="1dp"
-        app:strokeColor="@color/gray_300"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tvOrLabel">
-        
-        <com.google.android.material.textfield.TextInputLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="@string/url_hint"
-            app:boxBackgroundMode="none"
-            app:hintTextColor="@color/gray_500">
-            
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/etUrl"
+            <!-- Progress Bar -->
+            <com.google.android.material.progressindicator.LinearProgressIndicator
+                android:id="@+id/progressBar"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:inputType="textUri"
-                android:minLines="2"
-                android:maxLines="3"
-                android:padding="12dp"
-                android:textSize="13sp"
-                android:fontFamily="@font/google_sans_font_family" />
-        </com.google.android.material.textfield.TextInputLayout>
-    </com.google.android.material.card.MaterialCardView>
+                android:visibility="gone"
+                app:indicatorColor="?attr/colorPrimary"
+                app:trackColor="?attr/colorSurface"
+                tools:visibility="visible" />
 
-    <!-- Botones de análisis -->
-    <LinearLayout
-        android:id="@+id/layoutButtons"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:orientation="horizontal"
-        android:weightSum="2"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/cardUrl">
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnAnalyzeUrlIncremental"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginEnd="8dp"
-            android:layout_weight="1"
-            android:text="@string/btn_streaming"
-            android:textSize="13sp"
-            android:fontFamily="@font/google_sans_font_family"
-            android:textStyle="bold"
-            app:icon="@android:drawable/ic_media_play"
-            app:iconGravity="top"
-            app:cornerRadius="12dp"
-            style="@style/Widget.MediaInfo.Button" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnAnalyzeUrlFull"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="@string/btn_full_download"
-            android:textSize="13sp"
-            android:fontFamily="@font/google_sans_font_family"
-            android:textStyle="bold"
-            app:icon="@android:drawable/stat_sys_download"
-            app:iconGravity="top"
-            app:cornerRadius="12dp"
-            style="@style/Widget.MediaInfo.Button.Outlined" />
-    </LinearLayout>
-
-    <!-- Barra de progreso -->
-    <com.google.android.material.progressindicator.LinearProgressIndicator
-        android:id="@+id/progressBar"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:visibility="gone"
-        app:indicatorColor="@color/google_blue"
-        app:trackColor="@color/gray_200"
-        app:trackCornerRadius="4dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/layoutButtons"
-        tools:visibility="visible"
-        tools:progress="45" />
-
-    <!-- Estadísticas -->
-    <com.google.android.material.card.MaterialCardView
-        android:id="@+id/cardStats"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:visibility="gone"
-        app:cardElevation="1dp"
-        app:cardCornerRadius="12dp"
-        app:cardBackgroundColor="@color/gray_50"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/progressBar"
-        tools:visibility="visible">
-        
-        <TextView
-            android:id="@+id/tvStats"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:padding="12dp"
-            android:textSize="12sp"
-            android:textColor="@color/google_blue"
-            android:fontFamily="@font/google_sans_font_family"
-            android:textStyle="bold"
-            android:lineSpacingExtra="2dp"
-            tools:text="✅ Análisis completado en 1.5 segundos\n📊 Descargado: 5% del archivo" />
-    </com.google.android.material.card.MaterialCardView>
-
-    <!-- Output -->
-    <com.google.android.material.card.MaterialCardView
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:layout_marginTop="12dp"
-        app:cardElevation="2dp"
-        app:cardCornerRadius="12dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/cardStats">
-        
-        <ScrollView
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:padding="12dp">
-
+            <!-- Output Content -->
             <TextView
                 android:id="@+id/tvOutput"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:padding="16dp"
+                android:textSize="13sp"
+                android:textColor="?android:attr/textColorPrimary"
                 android:fontFamily="monospace"
-                android:text="@string/initial_message"
-                android:textSize="11sp"
-                android:textColor="@color/gray_700"
-                android:lineSpacingExtra="2dp" />
-        </ScrollView>
-    </com.google.android.material.card.MaterialCardView>
+                android:text="@string/no_file_loaded"
+                android:lineSpacingExtra="4dp"
+                android:textIsSelectable="true" />
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+    <!-- FAB Menu (3 dots) -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabMenu"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="16dp"
+        android:src="@android:drawable/ic_menu_more"
+        app:tint="?attr/colorOnPrimary"
+        app:backgroundTint="?attr/colorPrimary" />
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

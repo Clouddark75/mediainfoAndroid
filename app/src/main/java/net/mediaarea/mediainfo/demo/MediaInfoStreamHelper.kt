@@ -15,12 +15,12 @@ class MediaInfoStreamHelper {
     
     companion object {
         private const val TAG = "MediaInfoStreamHelper"
-        private const val CHUNK_SIZE = 256 * 1024 // 256 KB por chunk (aumentado para mejor rendimiento)
+        private const val CHUNK_SIZE = 256 * 1024 // 256 KB por chunk
         private const val INITIAL_READ_SIZE = 20 * 1024 * 1024 // 20 MB inicial
         
         /**
          * Analiza un stream HTTP/HTTPS con soporte de seeking para obtener metadatos completos.
-         * Este método implementa el algoritmo correcto para obtener bit rate, stream size, etc.
+         * Versión mejorada que funciona incluso si el servidor no soporta HEAD o Range requests.
          */
         suspend fun analyzeFromStreamWithSeeking(
             url: String,
@@ -33,22 +33,63 @@ class MediaInfoStreamHelper {
                 .build()
             
             try {
-                // Primero, obtener el tamaño total del archivo
-                val headRequest = Request.Builder()
-                    .url(url)
-                    .head()
-                    .build()
-                
-                val headResponse = client.newCall(headRequest).execute()
-                val contentLength = headResponse.body?.contentLength() ?: -1L
-                headResponse.close()
-                
-                if (contentLength <= 0) {
-                    throw Exception("No se pudo determinar el tamaño del archivo")
+                // Intentar obtener el tamaño total del archivo con HEAD
+                var contentLength = -1L
+                try {
+                    val headRequest = Request.Builder()
+                        .url(url)
+                        .head()
+                        .build()
+                    
+                    val headResponse = client.newCall(headRequest).execute()
+                    contentLength = headResponse.body?.contentLength() ?: -1L
+                    headResponse.close()
+                    
+                    Log.d(TAG, "HEAD response - Content-Length: $contentLength")
+                } catch (e: Exception) {
+                    Log.w(TAG, "HEAD request falló, intentando GET: ${e.message}")
                 }
                 
-                Log.d(TAG, "Tamaño del archivo: $contentLength bytes")
+                // Si HEAD falló o no devuelve tamaño, intentar con GET parcial
+                if (contentLength <= 0) {
+                    val getRequest = Request.Builder()
+                        .url(url)
+                        .addHeader("Range", "bytes=0-0")
+                        .build()
+                    
+                    val getResponse = client.newCall(getRequest).execute()
+                    
+                    // Intentar obtener tamaño del Content-Range header
+                    val contentRange = getResponse.header("Content-Range")
+                    if (contentRange != null) {
+                        // Content-Range: bytes 0-0/12345678
+                        val totalSize = contentRange.substringAfterLast("/")
+                        contentLength = totalSize.toLongOrNull() ?: -1L
+                    } else {
+                        contentLength = getResponse.body?.contentLength() ?: -1L
+                    }
+                    
+                    getResponse.close()
+                    Log.d(TAG, "GET Range response - Content-Length: $contentLength")
+                }
+                
+                // Si aún no tenemos tamaño, usar método de fallback sin seeking
+                if (contentLength <= 0) {
+                    Log.w(TAG, "No se pudo determinar tamaño del archivo, usando método sin seeking")
+                    return@withContext analyzeFromStreamSequential(url, progressCallback)
+                }
+                
+                Log.d(TAG, "Tamaño del archivo confirmado: $contentLength bytes")
                 progressCallback?.invoke(0, contentLength, "Iniciando análisis con seeking...")
+                
+                // Verificar si el servidor soporta Range requests
+                val supportsRange = testRangeSupport(client, url)
+                if (!supportsRange) {
+                    Log.w(TAG, "Servidor no soporta Range requests, usando método secuencial")
+                    return@withContext analyzeFromStreamSequential(url, progressCallback)
+                }
+                
+                Log.d(TAG, "Servidor soporta Range requests, procediendo con seeking")
                 
                 // Crear instancia de MediaInfo
                 val mediaInfo = MediaInfo()
@@ -57,7 +98,7 @@ class MediaInfoStreamHelper {
                 mediaInfo.Open_Buffer_Init(contentLength, 0)
                 
                 var totalBytesRead = 0L
-                val readChunks = mutableListOf<Pair<Long, ByteArray>>() // Guardar chunks leídos
+                val readChunks = mutableListOf<Pair<Long, ByteArray>>()
                 
                 // FASE 1: Leer el inicio del archivo (primeros 20 MB o menos)
                 Log.d(TAG, "FASE 1: Leyendo inicio del archivo...")
@@ -83,7 +124,7 @@ class MediaInfoStreamHelper {
                 // FASE 2: Verificar si MediaInfo necesita más datos (seeking)
                 var seekPosition = mediaInfo.Open_Buffer_Continue_GoTo_Get()
                 var seekAttempts = 0
-                val maxSeekAttempts = 10 // Limitar intentos de seeking
+                val maxSeekAttempts = 10
                 
                 while (seekPosition >= 0 && seekAttempts < maxSeekAttempts) {
                     seekAttempts++
@@ -129,8 +170,7 @@ class MediaInfoStreamHelper {
                 }
                 
                 // FASE 3: Leer el final del archivo si es necesario
-                // Algunos metadatos (como índices) están al final del archivo
-                val endSize = minOf(5 * 1024 * 1024L, contentLength / 10) // Últimos 5 MB o 10% del archivo
+                val endSize = minOf(5 * 1024 * 1024L, contentLength / 10)
                 val endStart = maxOf(0, contentLength - endSize)
                 
                 if (endStart > 0 && !readChunks.any { it.first >= endStart }) {
@@ -175,7 +215,115 @@ class MediaInfoStreamHelper {
         }
         
         /**
-         * Lee un rango específico de bytes desde una URL usando HTTP Range requests
+         * Prueba si el servidor soporta Range requests
+         */
+        private fun testRangeSupport(client: OkHttpClient, url: String): Boolean {
+            return try {
+                val request = Request.Builder()
+                    .url(url)
+                    .addHeader("Range", "bytes=0-0")
+                    .build()
+                
+                val response = client.newCall(request).execute()
+                val supportsRange = response.code == 206 || response.header("Accept-Ranges") == "bytes"
+                response.close()
+                
+                Log.d(TAG, "Soporte de Range requests: $supportsRange (código: ${response.code})")
+                supportsRange
+            } catch (e: Exception) {
+                Log.w(TAG, "Error probando Range support", e)
+                false
+            }
+        }
+        
+        /**
+         * Método de fallback: análisis secuencial sin seeking
+         */
+        private suspend fun analyzeFromStreamSequential(
+            url: String,
+            progressCallback: ((bytesRead: Long, totalBytes: Long?, status: String) -> Unit)? = null
+        ): StreamAnalysisResult = withContext(Dispatchers.IO) {
+            
+            val client = OkHttpClient.Builder()
+                .connectTimeout(30, TimeUnit.SECONDS)
+                .readTimeout(30, TimeUnit.SECONDS)
+                .build()
+            
+            val request = Request.Builder()
+                .url(url)
+                .build()
+            
+            var inputStream: InputStream? = null
+            
+            try {
+                val response = client.newCall(request).execute()
+                
+                if (!response.isSuccessful) {
+                    throw Exception("Error HTTP: ${response.code} - ${response.message}")
+                }
+                
+                val contentLength = response.body?.contentLength() ?: -1L
+                inputStream = response.body?.byteStream() 
+                    ?: throw Exception("No se pudo obtener el stream")
+                
+                Log.d(TAG, "Análisis secuencial - Content-Length: $contentLength bytes")
+                progressCallback?.invoke(0, contentLength, "Iniciando análisis secuencial...")
+                
+                val mediaInfo = MediaInfo()
+                mediaInfo.Open_Buffer_Init(contentLength, 0)
+                
+                val buffer = ByteArray(CHUNK_SIZE)
+                var totalBytesRead = 0L
+                var chunkCount = 0
+                val maxBytes = 30 * 1024 * 1024L // Límite de 30 MB para secuencial
+                
+                while (totalBytesRead < maxBytes) {
+                    val bytesRead = inputStream.read(buffer)
+                    
+                    if (bytesRead == -1) {
+                        Log.d(TAG, "Fin del stream alcanzado")
+                        break
+                    }
+                    
+                    totalBytesRead += bytesRead
+                    chunkCount++
+                    
+                    val state = mediaInfo.Open_Buffer_Continue(buffer, bytesRead.toLong())
+                    
+                    progressCallback?.invoke(
+                        totalBytesRead,
+                        contentLength,
+                        "Procesando: ${formatBytes(totalBytesRead)}"
+                    )
+                    
+                    // Verificar si tiene suficiente información
+                    if ((state.toInt() and 0x08) != 0) {
+                        Log.d(TAG, "Análisis completo con ${formatBytes(totalBytesRead)}")
+                        break
+                    }
+                }
+                
+                mediaInfo.Open_Buffer_Finalize()
+                
+                val result = extractCompleteInfo(mediaInfo, totalBytesRead, contentLength)
+                
+                mediaInfo.Close()
+                
+                result
+                
+            } catch (e: Exception) {
+                Log.e(TAG, "Error en análisis secuencial", e)
+                StreamAnalysisResult(
+                    success = false,
+                    error = e.message ?: "Error desconocido"
+                )
+            } finally {
+                inputStream?.close()
+            }
+        }
+        
+        /**
+         * Lee un rango específico de bytes desde una URL
          */
         private fun readRange(client: OkHttpClient, url: String, start: Long, end: Long): ByteArray? {
             return try {
@@ -186,10 +334,13 @@ class MediaInfoStreamHelper {
                 
                 val response = client.newCall(request).execute()
                 
-                if (response.isSuccessful || response.code == 206) { // 206 = Partial Content
-                    response.body?.bytes()
+                if (response.isSuccessful || response.code == 206) {
+                    val data = response.body?.bytes()
+                    response.close()
+                    data
                 } else {
                     Log.w(TAG, "Error al leer rango $start-$end: ${response.code}")
+                    response.close()
                     null
                 }
             } catch (e: Exception) {
@@ -294,19 +445,17 @@ class MediaInfoStreamHelper {
         }
         
         /**
-         * Método heredado - análisis secuencial simple (sin seeking)
-         * Mantener para compatibilidad
+         * Método principal - usa el mejor método disponible automáticamente
          */
         suspend fun analyzeFromStreamIncremental(
             url: String,
             progressCallback: ((bytesRead: Long, totalBytes: Long?, status: String) -> Unit)? = null
         ): StreamAnalysisResult {
-            // Redirigir al nuevo método con seeking
             return analyzeFromStreamWithSeeking(url, progressCallback)
         }
         
         /**
-         * Análisis con descarga completa (método anterior como fallback)
+         * Análisis con descarga completa (fallback legacy)
          */
         suspend fun analyzeFromUrl(
             url: String,
@@ -357,7 +506,6 @@ class MediaInfoStreamHelper {
 
                 val mediaInfo = MediaInfo()
 
-                // Use Open_Buffer methods instead of Open()
                 val fileBytes = tempFile.readBytes()
                 mediaInfo.Open_Buffer_Init(fileBytes.size.toLong(), 0)
                 mediaInfo.Open_Buffer_Continue(fileBytes, fileBytes.size.toLong())
@@ -377,9 +525,6 @@ class MediaInfoStreamHelper {
             }
         }
         
-        /**
-         * Formatea bytes a formato legible (KB, MB, GB)
-         */
         private fun formatBytes(bytes: Long): String {
             return when {
                 bytes < 1024 -> "$bytes B"
@@ -390,9 +535,6 @@ class MediaInfoStreamHelper {
         }
     }
     
-    /**
-     * Información del stream de video
-     */
     data class VideoStreamInfo(
         val format: String = "",
         val bitRate: String = "",
@@ -405,9 +547,6 @@ class MediaInfoStreamHelper {
         val duration: String = ""
     )
     
-    /**
-     * Información del stream de audio
-     */
     data class AudioStreamInfo(
         val format: String = "",
         val bitRate: String = "",
@@ -419,9 +558,6 @@ class MediaInfoStreamHelper {
         val duration: String = ""
     )
     
-    /**
-     * Información del stream de subtítulos
-     */
     data class SubtitleStreamInfo(
         val format: String = "",
         val bitRate: String = "",
@@ -435,9 +571,6 @@ class MediaInfoStreamHelper {
         val frameRate: String = ""
     )
     
-    /**
-     * Resultado del análisis de stream
-     */
     data class StreamAnalysisResult(
         val success: Boolean,
         val xmlOutput: String = "",
@@ -466,7 +599,6 @@ class MediaInfoStreamHelper {
                     if (bitRate.isNotEmpty()) appendLine("Bitrate General: $bitRate")
                     appendLine()
                     
-                    // Información de Video
                     videoInfo?.let { video ->
                         appendLine("=== VIDEO ===")
                         if (video.format.isNotEmpty()) appendLine("  Formato: ${video.format}")
@@ -482,7 +614,6 @@ class MediaInfoStreamHelper {
                         appendLine()
                     }
                     
-                    // Información de Audio
                     audioInfo?.let { audio ->
                         appendLine("=== AUDIO ===")
                         if (audio.format.isNotEmpty()) appendLine("  Formato: ${audio.format}")
@@ -496,7 +627,6 @@ class MediaInfoStreamHelper {
                         appendLine()
                     }
                     
-                    // Información de Subtítulos
                     if (subtitlesInfo.isNotEmpty()) {
                         appendLine("=== SUBTÍTULOS (${subtitlesInfo.size} streams) ===")
                         subtitlesInfo.forEachIndexed { index, subtitle ->

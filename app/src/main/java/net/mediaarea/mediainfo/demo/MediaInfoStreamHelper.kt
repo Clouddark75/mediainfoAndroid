@@ -16,7 +16,7 @@ class MediaInfoStreamHelper {
     companion object {
         private const val TAG = "MediaInfoStreamHelper"
         private const val CHUNK_SIZE = 64 * 1024 // 64 KB por chunk
-        private const val MAX_BUFFER_SIZE = 10 * 1024 * 1024 // Máximo 10 MB
+        private const val MAX_BUFFER_SIZE = 20 * 1024 * 1024 // Máximo 10 MB
         
         /**
          * Analiza un stream HTTP/HTTPS de forma incremental sin descargar el archivo completo.

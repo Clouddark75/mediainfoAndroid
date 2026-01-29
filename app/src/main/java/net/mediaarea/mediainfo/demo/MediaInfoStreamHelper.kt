@@ -15,14 +15,14 @@ class MediaInfoStreamHelper {
     
     companion object {
         private const val TAG = "MediaInfoStreamHelper"
-        private const val CHUNK_SIZE = 64 * 1024 // 64 KB por chunk
-        private const val MAX_BUFFER_SIZE = 120 * 1024 * 1024 // Máximo 10 MB
+        private const val CHUNK_SIZE = 256 * 1024 // 256 KB por chunk (aumentado para mejor rendimiento)
+        private const val INITIAL_READ_SIZE = 20 * 1024 * 1024 // 20 MB inicial
         
         /**
-         * Analiza un stream HTTP/HTTPS de forma incremental sin descargar el archivo completo.
-         * Se detiene automáticamente cuando MediaInfo tiene suficiente información.
+         * Analiza un stream HTTP/HTTPS con soporte de seeking para obtener metadatos completos.
+         * Este método implementa el algoritmo correcto para obtener bit rate, stream size, etc.
          */
-        suspend fun analyzeFromStreamIncremental(
+        suspend fun analyzeFromStreamWithSeeking(
             url: String,
             progressCallback: ((bytesRead: Long, totalBytes: Long?, status: String) -> Unit)? = null
         ): StreamAnalysisResult = withContext(Dispatchers.IO) {
@@ -32,189 +32,277 @@ class MediaInfoStreamHelper {
                 .readTimeout(30, TimeUnit.SECONDS)
                 .build()
             
-            val request = Request.Builder()
-                .url(url)
-                .build()
-            
-            var inputStream: InputStream? = null
-            
             try {
-                val response = client.newCall(request).execute()
+                // Primero, obtener el tamaño total del archivo
+                val headRequest = Request.Builder()
+                    .url(url)
+                    .head()
+                    .build()
                 
-                if (!response.isSuccessful) {
-                    throw Exception("Error HTTP: ${response.code} - ${response.message}")
+                val headResponse = client.newCall(headRequest).execute()
+                val contentLength = headResponse.body?.contentLength() ?: -1L
+                headResponse.close()
+                
+                if (contentLength <= 0) {
+                    throw Exception("No se pudo determinar el tamaño del archivo")
                 }
                 
-                val contentLength = response.body?.contentLength() ?: -1L
-                inputStream = response.body?.byteStream() 
-                    ?: throw Exception("No se pudo obtener el stream")
-                
-                Log.d(TAG, "Iniciando análisis incremental. Content-Length: $contentLength bytes")
-                progressCallback?.invoke(0, contentLength, "Iniciando análisis...")
+                Log.d(TAG, "Tamaño del archivo: $contentLength bytes")
+                progressCallback?.invoke(0, contentLength, "Iniciando análisis con seeking...")
                 
                 // Crear instancia de MediaInfo
                 val mediaInfo = MediaInfo()
                 
-                // Abrir buffer para análisis incremental
+                // Inicializar con el tamaño total conocido
                 mediaInfo.Open_Buffer_Init(contentLength, 0)
                 
-                val buffer = ByteArray(CHUNK_SIZE)
                 var totalBytesRead = 0L
-                var chunkCount = 0
-                var continueReading = true
+                val readChunks = mutableListOf<Pair<Long, ByteArray>>() // Guardar chunks leídos
                 
-                // Leer y procesar chunks
-                while (continueReading && totalBytesRead < MAX_BUFFER_SIZE) {
-                    val bytesRead = inputStream.read(buffer)
+                // FASE 1: Leer el inicio del archivo (primeros 20 MB o menos)
+                Log.d(TAG, "FASE 1: Leyendo inicio del archivo...")
+                val initialSize = minOf(INITIAL_READ_SIZE.toLong(), contentLength)
+                val initialData = readRange(client, url, 0, initialSize - 1)
+                
+                if (initialData != null) {
+                    totalBytesRead = initialData.size.toLong()
+                    readChunks.add(Pair(0L, initialData))
                     
-                    if (bytesRead == -1) {
-                        Log.d(TAG, "Fin del stream alcanzado")
+                    // Enviar datos iniciales
+                    val state = mediaInfo.Open_Buffer_Continue(initialData, initialData.size.toLong())
+                    
+                    progressCallback?.invoke(
+                        totalBytesRead,
+                        contentLength,
+                        "Fase 1: Analizando inicio (${formatBytes(totalBytesRead)})"
+                    )
+                    
+                    Log.d(TAG, "Estado después de leer inicio: $state (0x${state.toString(16)})")
+                }
+                
+                // FASE 2: Verificar si MediaInfo necesita más datos (seeking)
+                var seekPosition = mediaInfo.Open_Buffer_Continue_GoTo_Get()
+                var seekAttempts = 0
+                val maxSeekAttempts = 10 // Limitar intentos de seeking
+                
+                while (seekPosition >= 0 && seekAttempts < maxSeekAttempts) {
+                    seekAttempts++
+                    Log.d(TAG, "FASE 2: MediaInfo solicita seeking a posición: $seekPosition")
+                    
+                    progressCallback?.invoke(
+                        totalBytesRead,
+                        contentLength,
+                        "Fase 2: Buscando metadatos adicionales (intento $seekAttempts)"
+                    )
+                    
+                    // Determinar cuánto leer desde esta posición
+                    val remainingBytes = contentLength - seekPosition
+                    val bytesToRead = minOf(CHUNK_SIZE.toLong(), remainingBytes)
+                    
+                    if (bytesToRead <= 0) break
+                    
+                    // Leer desde la posición solicitada
+                    val seekData = readRange(client, url, seekPosition, seekPosition + bytesToRead - 1)
+                    
+                    if (seekData != null) {
+                        totalBytesRead += seekData.size
+                        readChunks.add(Pair(seekPosition, seekData))
+                        
+                        // Informar a MediaInfo de la nueva posición y datos
+                        mediaInfo.Open_Buffer_Init(contentLength, seekPosition)
+                        val state = mediaInfo.Open_Buffer_Continue(seekData, seekData.size.toLong())
+                        
+                        Log.d(TAG, "Estado después de seeking: $state (0x${state.toString(16)})")
+                        
+                        progressCallback?.invoke(
+                            totalBytesRead,
+                            contentLength,
+                            "Leyendo posición ${formatBytes(seekPosition)} (${formatBytes(totalBytesRead)} total)"
+                        )
+                        
+                        // Verificar si necesita más seeking
+                        seekPosition = mediaInfo.Open_Buffer_Continue_GoTo_Get()
+                    } else {
+                        Log.w(TAG, "No se pudo leer datos en posición: $seekPosition")
                         break
                     }
+                }
+                
+                // FASE 3: Leer el final del archivo si es necesario
+                // Algunos metadatos (como índices) están al final del archivo
+                val endSize = minOf(5 * 1024 * 1024L, contentLength / 10) // Últimos 5 MB o 10% del archivo
+                val endStart = maxOf(0, contentLength - endSize)
+                
+                if (endStart > 0 && !readChunks.any { it.first >= endStart }) {
+                    Log.d(TAG, "FASE 3: Leyendo final del archivo...")
+                    val endData = readRange(client, url, endStart, contentLength - 1)
                     
-                    totalBytesRead += bytesRead
-                    chunkCount++
-                    
-                    // Enviar datos a MediaInfo
-                    val state = mediaInfo.Open_Buffer_Continue(buffer, bytesRead.toLong())
-                    
-                    val percentComplete = if (contentLength > 0) {
-                        ((totalBytesRead * 100) / contentLength).toInt()
-                    } else {
-                        0
-                    }
-                    
-                    Log.d(TAG, "Chunk $chunkCount: $bytesRead bytes (Total: $totalBytesRead, Estado: $state)")
-                    progressCallback?.invoke(
-                        totalBytesRead, 
-                        contentLength, 
-                        "Procesando: ${formatBytes(totalBytesRead)} ($percentComplete%)"
-                    )
-                    
-                    // Verificar si MediaInfo ya tiene suficiente información
-                    // Estado & 0x08 (bit 3) indica que el análisis está completo
-                    if ((state.toInt() and 0x08) != 0) {
-                        Log.d(TAG, "MediaInfo tiene información completa. Deteniendo descarga.")
+                    if (endData != null) {
+                        totalBytesRead += endData.size
+                        readChunks.add(Pair(endStart, endData))
+                        
+                        mediaInfo.Open_Buffer_Init(contentLength, endStart)
+                        mediaInfo.Open_Buffer_Continue(endData, endData.size.toLong())
+                        
                         progressCallback?.invoke(
-                            totalBytesRead, 
-                            contentLength, 
-                            "Análisis completo con ${formatBytes(totalBytesRead)}"
+                            totalBytesRead,
+                            contentLength,
+                            "Fase 3: Analizando final (${formatBytes(totalBytesRead)} total)"
                         )
-                        continueReading = false
-                    }
-                    
-                    // Seguridad: detener si hemos leído más del límite
-                    if (totalBytesRead >= MAX_BUFFER_SIZE) {
-                        Log.w(TAG, "Alcanzado límite máximo de buffer ($MAX_BUFFER_SIZE bytes)")
-                        continueReading = false
                     }
                 }
                 
-                // Finalizar el buffer
+                // Finalizar el análisis
                 mediaInfo.Open_Buffer_Finalize()
                 
-                // Obtener información
-                mediaInfo.Option("Inform", "MIXML")
-                val xmlResult = mediaInfo.Inform()
+                Log.d(TAG, "Análisis completado. Total descargado: ${formatBytes(totalBytesRead)} de ${formatBytes(contentLength)}")
+                progressCallback?.invoke(totalBytesRead, contentLength, "Finalizando análisis...")
                 
-                // También obtener formato texto para resumen rápido
-                mediaInfo.Option("Inform", "Text")
-                val textResult = mediaInfo.Inform()
-                
-                // Obtener información general
-                val format = mediaInfo.Get(MediaInfo.Stream.General, 0, "Format")
-                val duration = mediaInfo.Get(MediaInfo.Stream.General, 0, "Duration/String")
-                val fileSize = mediaInfo.Get(MediaInfo.Stream.General, 0, "FileSize/String")
-                val bitRate = mediaInfo.Get(MediaInfo.Stream.General, 0, "OverallBitRate/String")
-                
-                // === INFORMACIÓN DE VIDEO ===
-                val videoInfo = if (mediaInfo.Count_Get(MediaInfo.Stream.Video) > 0) {
-                    VideoStreamInfo(
-                        format = mediaInfo.Get(MediaInfo.Stream.Video, 0, "Format"),
-                        bitRate = mediaInfo.Get(MediaInfo.Stream.Video, 0, "BitRate/String"),
-                        streamSize = mediaInfo.Get(MediaInfo.Stream.Video, 0, "StreamSize/String"),
-                        width = mediaInfo.Get(MediaInfo.Stream.Video, 0, "Width"),
-                        height = mediaInfo.Get(MediaInfo.Stream.Video, 0, "Height"),
-                        frameRate = mediaInfo.Get(MediaInfo.Stream.Video, 0, "FrameRate"),
-                        codecId = mediaInfo.Get(MediaInfo.Stream.Video, 0, "CodecID")
-                    )
-                } else null
-                
-                // === INFORMACIÓN DE AUDIO ===
-                val audioInfo = if (mediaInfo.Count_Get(MediaInfo.Stream.Audio) > 0) {
-                    AudioStreamInfo(
-                        format = mediaInfo.Get(MediaInfo.Stream.Audio, 0, "Format"),
-                        bitRate = mediaInfo.Get(MediaInfo.Stream.Audio, 0, "BitRate/String"),
-                        streamSize = mediaInfo.Get(MediaInfo.Stream.Audio, 0, "StreamSize/String"),
-                        channels = mediaInfo.Get(MediaInfo.Stream.Audio, 0, "Channels"),
-                        samplingRate = mediaInfo.Get(MediaInfo.Stream.Audio, 0, "SamplingRate/String"),
-                        language = mediaInfo.Get(MediaInfo.Stream.Audio, 0, "Language")
-                    )
-                } else null
-                
-                // === INFORMACIÓN DE SUBTÍTULOS ===
-                val subtitleCount = mediaInfo.Count_Get(MediaInfo.Stream.Text).toInt()
-                val subtitlesInfo = mutableListOf<SubtitleStreamInfo>()
-                
-                for (i in 0 until subtitleCount) {
-                    subtitlesInfo.add(
-                        SubtitleStreamInfo(
-                            format = mediaInfo.Get(MediaInfo.Stream.Text, i, "Format"),
-                            bitRate = mediaInfo.Get(MediaInfo.Stream.Text, i, "BitRate/String"),
-                            streamSize = mediaInfo.Get(MediaInfo.Stream.Text, i, "StreamSize/String"),
-                            duration = mediaInfo.Get(MediaInfo.Stream.Text, i, "Duration/String"),
-                            countOfElements = mediaInfo.Get(MediaInfo.Stream.Text, i, "Count"),
-                            language = mediaInfo.Get(MediaInfo.Stream.Text, i, "Language"),
-                            title = mediaInfo.Get(MediaInfo.Stream.Text, i, "Title"),
-                            codecId = mediaInfo.Get(MediaInfo.Stream.Text, i, "CodecID")
-                        )
-                    )
-                }
+                // Extraer toda la información
+                val result = extractCompleteInfo(mediaInfo, totalBytesRead, contentLength)
                 
                 mediaInfo.Close()
                 
-                val percentDownloaded = if (contentLength > 0) {
-                    ((totalBytesRead.toDouble() / contentLength) * 100).toInt()
-                } else {
-                    0
-                }
-                
-                Log.d(TAG, """
-                    |Análisis completado:
-                    |  - Bytes descargados: $totalBytesRead / $contentLength ($percentDownloaded%)
-                    |  - Chunks procesados: $chunkCount
-                    |  - Formato: $format
-                    |  - Duración: $duration
-                    |  - Video streams: ${if (videoInfo != null) 1 else 0}
-                    |  - Audio streams: ${if (audioInfo != null) 1 else 0}
-                    |  - Subtitle streams: $subtitleCount
-                """.trimMargin())
-                
-                StreamAnalysisResult(
-                    success = true,
-                    xmlOutput = xmlResult,
-                    textOutput = textResult,
-                    bytesDownloaded = totalBytesRead,
-                    totalFileSize = contentLength,
-                    percentDownloaded = percentDownloaded,
-                    format = format,
-                    duration = duration,
-                    fileSize = fileSize,
-                    bitRate = bitRate,
-                    videoInfo = videoInfo,
-                    audioInfo = audioInfo,
-                    subtitlesInfo = subtitlesInfo
-                )
+                result
                 
             } catch (e: Exception) {
-                Log.e(TAG, "Error en análisis incremental", e)
+                Log.e(TAG, "Error en análisis con seeking", e)
                 StreamAnalysisResult(
                     success = false,
                     error = e.message ?: "Error desconocido"
                 )
-            } finally {
-                inputStream?.close()
             }
+        }
+        
+        /**
+         * Lee un rango específico de bytes desde una URL usando HTTP Range requests
+         */
+        private fun readRange(client: OkHttpClient, url: String, start: Long, end: Long): ByteArray? {
+            return try {
+                val request = Request.Builder()
+                    .url(url)
+                    .addHeader("Range", "bytes=$start-$end")
+                    .build()
+                
+                val response = client.newCall(request).execute()
+                
+                if (response.isSuccessful || response.code == 206) { // 206 = Partial Content
+                    response.body?.bytes()
+                } else {
+                    Log.w(TAG, "Error al leer rango $start-$end: ${response.code}")
+                    null
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Excepción al leer rango $start-$end", e)
+                null
+            }
+        }
+        
+        /**
+         * Extrae toda la información de MediaInfo
+         */
+        private fun extractCompleteInfo(
+            mediaInfo: MediaInfo,
+            bytesDownloaded: Long,
+            totalFileSize: Long
+        ): StreamAnalysisResult {
+            
+            // Obtener información en diferentes formatos
+            mediaInfo.Option("Inform", "MIXML")
+            val xmlResult = mediaInfo.Inform()
+            
+            mediaInfo.Option("Inform", "Text")
+            val textResult = mediaInfo.Inform()
+            
+            // Información general
+            val format = mediaInfo.Get(MediaInfo.Stream.General, 0, "Format")
+            val duration = mediaInfo.Get(MediaInfo.Stream.General, 0, "Duration/String")
+            val fileSize = mediaInfo.Get(MediaInfo.Stream.General, 0, "FileSize/String")
+            val bitRate = mediaInfo.Get(MediaInfo.Stream.General, 0, "OverallBitRate/String")
+            
+            // === INFORMACIÓN DE VIDEO ===
+            val videoInfo = if (mediaInfo.Count_Get(MediaInfo.Stream.Video) > 0) {
+                VideoStreamInfo(
+                    format = mediaInfo.Get(MediaInfo.Stream.Video, 0, "Format"),
+                    bitRate = mediaInfo.Get(MediaInfo.Stream.Video, 0, "BitRate/String"),
+                    bitRateNominal = mediaInfo.Get(MediaInfo.Stream.Video, 0, "BitRate_Nominal/String"),
+                    streamSize = mediaInfo.Get(MediaInfo.Stream.Video, 0, "StreamSize/String"),
+                    width = mediaInfo.Get(MediaInfo.Stream.Video, 0, "Width"),
+                    height = mediaInfo.Get(MediaInfo.Stream.Video, 0, "Height"),
+                    frameRate = mediaInfo.Get(MediaInfo.Stream.Video, 0, "FrameRate"),
+                    codecId = mediaInfo.Get(MediaInfo.Stream.Video, 0, "CodecID"),
+                    duration = mediaInfo.Get(MediaInfo.Stream.Video, 0, "Duration/String")
+                )
+            } else null
+            
+            // === INFORMACIÓN DE AUDIO ===
+            val audioInfo = if (mediaInfo.Count_Get(MediaInfo.Stream.Audio) > 0) {
+                AudioStreamInfo(
+                    format = mediaInfo.Get(MediaInfo.Stream.Audio, 0, "Format"),
+                    bitRate = mediaInfo.Get(MediaInfo.Stream.Audio, 0, "BitRate/String"),
+                    bitRateNominal = mediaInfo.Get(MediaInfo.Stream.Audio, 0, "BitRate_Nominal/String"),
+                    streamSize = mediaInfo.Get(MediaInfo.Stream.Audio, 0, "StreamSize/String"),
+                    channels = mediaInfo.Get(MediaInfo.Stream.Audio, 0, "Channels"),
+                    samplingRate = mediaInfo.Get(MediaInfo.Stream.Audio, 0, "SamplingRate/String"),
+                    language = mediaInfo.Get(MediaInfo.Stream.Audio, 0, "Language"),
+                    duration = mediaInfo.Get(MediaInfo.Stream.Audio, 0, "Duration/String")
+                )
+            } else null
+            
+            // === INFORMACIÓN DE SUBTÍTULOS ===
+            val subtitleCount = mediaInfo.Count_Get(MediaInfo.Stream.Text).toInt()
+            val subtitlesInfo = mutableListOf<SubtitleStreamInfo>()
+            
+            for (i in 0 until subtitleCount) {
+                subtitlesInfo.add(
+                    SubtitleStreamInfo(
+                        format = mediaInfo.Get(MediaInfo.Stream.Text, i, "Format"),
+                        bitRate = mediaInfo.Get(MediaInfo.Stream.Text, i, "BitRate/String"),
+                        streamSize = mediaInfo.Get(MediaInfo.Stream.Text, i, "StreamSize/String"),
+                        duration = mediaInfo.Get(MediaInfo.Stream.Text, i, "Duration/String"),
+                        countOfElements = mediaInfo.Get(MediaInfo.Stream.Text, i, "Count"),
+                        countOfElements2 = mediaInfo.Get(MediaInfo.Stream.Text, i, "ElementCount"),
+                        language = mediaInfo.Get(MediaInfo.Stream.Text, i, "Language"),
+                        title = mediaInfo.Get(MediaInfo.Stream.Text, i, "Title"),
+                        codecId = mediaInfo.Get(MediaInfo.Stream.Text, i, "CodecID"),
+                        frameRate = mediaInfo.Get(MediaInfo.Stream.Text, i, "FrameRate")
+                    )
+                )
+            }
+            
+            val percentDownloaded = if (totalFileSize > 0) {
+                ((bytesDownloaded.toDouble() / totalFileSize) * 100).toInt()
+            } else {
+                0
+            }
+            
+            return StreamAnalysisResult(
+                success = true,
+                xmlOutput = xmlResult,
+                textOutput = textResult,
+                bytesDownloaded = bytesDownloaded,
+                totalFileSize = totalFileSize,
+                percentDownloaded = percentDownloaded,
+                format = format,
+                duration = duration,
+                fileSize = fileSize,
+                bitRate = bitRate,
+                videoInfo = videoInfo,
+                audioInfo = audioInfo,
+                subtitlesInfo = subtitlesInfo
+            )
+        }
+        
+        /**
+         * Método heredado - análisis secuencial simple (sin seeking)
+         * Mantener para compatibilidad
+         */
+        suspend fun analyzeFromStreamIncremental(
+            url: String,
+            progressCallback: ((bytesRead: Long, totalBytes: Long?, status: String) -> Unit)? = null
+        ): StreamAnalysisResult {
+            // Redirigir al nuevo método con seeking
+            return analyzeFromStreamWithSeeking(url, progressCallback)
         }
         
         /**
@@ -308,11 +396,13 @@ class MediaInfoStreamHelper {
     data class VideoStreamInfo(
         val format: String = "",
         val bitRate: String = "",
+        val bitRateNominal: String = "",
         val streamSize: String = "",
         val width: String = "",
         val height: String = "",
         val frameRate: String = "",
-        val codecId: String = ""
+        val codecId: String = "",
+        val duration: String = ""
     )
     
     /**
@@ -321,10 +411,12 @@ class MediaInfoStreamHelper {
     data class AudioStreamInfo(
         val format: String = "",
         val bitRate: String = "",
+        val bitRateNominal: String = "",
         val streamSize: String = "",
         val channels: String = "",
         val samplingRate: String = "",
-        val language: String = ""
+        val language: String = "",
+        val duration: String = ""
     )
     
     /**
@@ -336,9 +428,11 @@ class MediaInfoStreamHelper {
         val streamSize: String = "",
         val duration: String = "",
         val countOfElements: String = "",
+        val countOfElements2: String = "",
         val language: String = "",
         val title: String = "",
-        val codecId: String = ""
+        val codecId: String = "",
+        val frameRate: String = ""
     )
     
     /**
@@ -377,11 +471,13 @@ class MediaInfoStreamHelper {
                         appendLine("=== VIDEO ===")
                         if (video.format.isNotEmpty()) appendLine("  Formato: ${video.format}")
                         if (video.bitRate.isNotEmpty()) appendLine("  Bitrate: ${video.bitRate}")
+                        if (video.bitRateNominal.isNotEmpty()) appendLine("  Bitrate Nominal: ${video.bitRateNominal}")
                         if (video.streamSize.isNotEmpty()) appendLine("  Stream Size: ${video.streamSize}")
                         if (video.width.isNotEmpty() && video.height.isNotEmpty()) {
                             appendLine("  Resolución: ${video.width}x${video.height}")
                         }
                         if (video.frameRate.isNotEmpty()) appendLine("  Frame Rate: ${video.frameRate}")
+                        if (video.duration.isNotEmpty()) appendLine("  Duración: ${video.duration}")
                         if (video.codecId.isNotEmpty()) appendLine("  Codec ID: ${video.codecId}")
                         appendLine()
                     }
@@ -391,9 +487,11 @@ class MediaInfoStreamHelper {
                         appendLine("=== AUDIO ===")
                         if (audio.format.isNotEmpty()) appendLine("  Formato: ${audio.format}")
                         if (audio.bitRate.isNotEmpty()) appendLine("  Bitrate: ${audio.bitRate}")
+                        if (audio.bitRateNominal.isNotEmpty()) appendLine("  Bitrate Nominal: ${audio.bitRateNominal}")
                         if (audio.streamSize.isNotEmpty()) appendLine("  Stream Size: ${audio.streamSize}")
                         if (audio.channels.isNotEmpty()) appendLine("  Canales: ${audio.channels}")
                         if (audio.samplingRate.isNotEmpty()) appendLine("  Sample Rate: ${audio.samplingRate}")
+                        if (audio.duration.isNotEmpty()) appendLine("  Duración: ${audio.duration}")
                         if (audio.language.isNotEmpty()) appendLine("  Idioma: ${audio.language}")
                         appendLine()
                     }
@@ -408,6 +506,8 @@ class MediaInfoStreamHelper {
                             if (subtitle.streamSize.isNotEmpty()) appendLine("    Stream Size: ${subtitle.streamSize}")
                             if (subtitle.duration.isNotEmpty()) appendLine("    Duración: ${subtitle.duration}")
                             if (subtitle.countOfElements.isNotEmpty()) appendLine("    Count of Elements: ${subtitle.countOfElements}")
+                            if (subtitle.countOfElements2.isNotEmpty()) appendLine("    Element Count: ${subtitle.countOfElements2}")
+                            if (subtitle.frameRate.isNotEmpty()) appendLine("    Frame Rate: ${subtitle.frameRate}")
                             if (subtitle.language.isNotEmpty()) appendLine("    Idioma: ${subtitle.language}")
                             if (subtitle.title.isNotEmpty()) appendLine("    Título: ${subtitle.title}")
                             if (subtitle.codecId.isNotEmpty()) appendLine("    Codec ID: ${subtitle.codecId}")

@@ -16,7 +16,7 @@ class MediaInfoStreamHelper {
     companion object {
         private const val TAG = "MediaInfoStreamHelper"
         private const val CHUNK_SIZE = 64 * 1024 // 64 KB por chunk
-        private const val MAX_BUFFER_SIZE = 20 * 1024 * 1024 // Máximo 10 MB
+        private const val MAX_BUFFER_SIZE = 30 * 1024 * 1024 // Máximo 10 MB
         
         /**
          * Analiza un stream HTTP/HTTPS de forma incremental sin descargar el archivo completo.
@@ -121,19 +121,55 @@ class MediaInfoStreamHelper {
                 mediaInfo.Option("Inform", "Text")
                 val textResult = mediaInfo.Inform()
                 
-                // Obtener información específica
+                // Obtener información general
                 val format = mediaInfo.Get(MediaInfo.Stream.General, 0, "Format")
                 val duration = mediaInfo.Get(MediaInfo.Stream.General, 0, "Duration/String")
                 val fileSize = mediaInfo.Get(MediaInfo.Stream.General, 0, "FileSize/String")
                 val bitRate = mediaInfo.Get(MediaInfo.Stream.General, 0, "OverallBitRate/String")
                 
-                val videoFormat = if (mediaInfo.Count_Get(MediaInfo.Stream.Video) > 0) {
-                    mediaInfo.Get(MediaInfo.Stream.Video, 0, "Format")
-                } else ""
+                // === INFORMACIÓN DE VIDEO ===
+                val videoInfo = if (mediaInfo.Count_Get(MediaInfo.Stream.Video) > 0) {
+                    VideoStreamInfo(
+                        format = mediaInfo.Get(MediaInfo.Stream.Video, 0, "Format"),
+                        bitRate = mediaInfo.Get(MediaInfo.Stream.Video, 0, "BitRate/String"),
+                        streamSize = mediaInfo.Get(MediaInfo.Stream.Video, 0, "StreamSize/String"),
+                        width = mediaInfo.Get(MediaInfo.Stream.Video, 0, "Width"),
+                        height = mediaInfo.Get(MediaInfo.Stream.Video, 0, "Height"),
+                        frameRate = mediaInfo.Get(MediaInfo.Stream.Video, 0, "FrameRate"),
+                        codecId = mediaInfo.Get(MediaInfo.Stream.Video, 0, "CodecID")
+                    )
+                } else null
                 
-                val audioFormat = if (mediaInfo.Count_Get(MediaInfo.Stream.Audio) > 0) {
-                    mediaInfo.Get(MediaInfo.Stream.Audio, 0, "Format")
-                } else ""
+                // === INFORMACIÓN DE AUDIO ===
+                val audioInfo = if (mediaInfo.Count_Get(MediaInfo.Stream.Audio) > 0) {
+                    AudioStreamInfo(
+                        format = mediaInfo.Get(MediaInfo.Stream.Audio, 0, "Format"),
+                        bitRate = mediaInfo.Get(MediaInfo.Stream.Audio, 0, "BitRate/String"),
+                        streamSize = mediaInfo.Get(MediaInfo.Stream.Audio, 0, "StreamSize/String"),
+                        channels = mediaInfo.Get(MediaInfo.Stream.Audio, 0, "Channels"),
+                        samplingRate = mediaInfo.Get(MediaInfo.Stream.Audio, 0, "SamplingRate/String"),
+                        language = mediaInfo.Get(MediaInfo.Stream.Audio, 0, "Language")
+                    )
+                } else null
+                
+                // === INFORMACIÓN DE SUBTÍTULOS ===
+                val subtitleCount = mediaInfo.Count_Get(MediaInfo.Stream.Text).toInt()
+                val subtitlesInfo = mutableListOf<SubtitleStreamInfo>()
+                
+                for (i in 0 until subtitleCount) {
+                    subtitlesInfo.add(
+                        SubtitleStreamInfo(
+                            format = mediaInfo.Get(MediaInfo.Stream.Text, i, "Format"),
+                            bitRate = mediaInfo.Get(MediaInfo.Stream.Text, i, "BitRate/String"),
+                            streamSize = mediaInfo.Get(MediaInfo.Stream.Text, i, "StreamSize/String"),
+                            duration = mediaInfo.Get(MediaInfo.Stream.Text, i, "Duration/String"),
+                            countOfElements = mediaInfo.Get(MediaInfo.Stream.Text, i, "Count"),
+                            language = mediaInfo.Get(MediaInfo.Stream.Text, i, "Language"),
+                            title = mediaInfo.Get(MediaInfo.Stream.Text, i, "Title"),
+                            codecId = mediaInfo.Get(MediaInfo.Stream.Text, i, "CodecID")
+                        )
+                    )
+                }
                 
                 mediaInfo.Close()
                 
@@ -149,6 +185,9 @@ class MediaInfoStreamHelper {
                     |  - Chunks procesados: $chunkCount
                     |  - Formato: $format
                     |  - Duración: $duration
+                    |  - Video streams: ${if (videoInfo != null) 1 else 0}
+                    |  - Audio streams: ${if (audioInfo != null) 1 else 0}
+                    |  - Subtitle streams: $subtitleCount
                 """.trimMargin())
                 
                 StreamAnalysisResult(
@@ -162,8 +201,9 @@ class MediaInfoStreamHelper {
                     duration = duration,
                     fileSize = fileSize,
                     bitRate = bitRate,
-                    videoFormat = videoFormat,
-                    audioFormat = audioFormat
+                    videoInfo = videoInfo,
+                    audioInfo = audioInfo,
+                    subtitlesInfo = subtitlesInfo
                 )
                 
             } catch (e: Exception) {
@@ -263,6 +303,45 @@ class MediaInfoStreamHelper {
     }
     
     /**
+     * Información del stream de video
+     */
+    data class VideoStreamInfo(
+        val format: String = "",
+        val bitRate: String = "",
+        val streamSize: String = "",
+        val width: String = "",
+        val height: String = "",
+        val frameRate: String = "",
+        val codecId: String = ""
+    )
+    
+    /**
+     * Información del stream de audio
+     */
+    data class AudioStreamInfo(
+        val format: String = "",
+        val bitRate: String = "",
+        val streamSize: String = "",
+        val channels: String = "",
+        val samplingRate: String = "",
+        val language: String = ""
+    )
+    
+    /**
+     * Información del stream de subtítulos
+     */
+    data class SubtitleStreamInfo(
+        val format: String = "",
+        val bitRate: String = "",
+        val streamSize: String = "",
+        val duration: String = "",
+        val countOfElements: String = "",
+        val language: String = "",
+        val title: String = "",
+        val codecId: String = ""
+    )
+    
+    /**
      * Resultado del análisis de stream
      */
     data class StreamAnalysisResult(
@@ -276,8 +355,9 @@ class MediaInfoStreamHelper {
         val duration: String = "",
         val fileSize: String = "",
         val bitRate: String = "",
-        val videoFormat: String = "",
-        val audioFormat: String = "",
+        val videoInfo: VideoStreamInfo? = null,
+        val audioInfo: AudioStreamInfo? = null,
+        val subtitlesInfo: List<SubtitleStreamInfo> = emptyList(),
         val error: String? = null
     ) {
         fun getSummary(): String {
@@ -289,10 +369,52 @@ class MediaInfoStreamHelper {
                     appendLine("Formato: $format")
                     if (duration.isNotEmpty()) appendLine("Duración: $duration")
                     if (fileSize.isNotEmpty()) appendLine("Tamaño: $fileSize")
-                    if (bitRate.isNotEmpty()) appendLine("Bitrate: $bitRate")
-                    if (videoFormat.isNotEmpty()) appendLine("Video: $videoFormat")
-                    if (audioFormat.isNotEmpty()) appendLine("Audio: $audioFormat")
+                    if (bitRate.isNotEmpty()) appendLine("Bitrate General: $bitRate")
                     appendLine()
+                    
+                    // Información de Video
+                    videoInfo?.let { video ->
+                        appendLine("=== VIDEO ===")
+                        if (video.format.isNotEmpty()) appendLine("  Formato: ${video.format}")
+                        if (video.bitRate.isNotEmpty()) appendLine("  Bitrate: ${video.bitRate}")
+                        if (video.streamSize.isNotEmpty()) appendLine("  Stream Size: ${video.streamSize}")
+                        if (video.width.isNotEmpty() && video.height.isNotEmpty()) {
+                            appendLine("  Resolución: ${video.width}x${video.height}")
+                        }
+                        if (video.frameRate.isNotEmpty()) appendLine("  Frame Rate: ${video.frameRate}")
+                        if (video.codecId.isNotEmpty()) appendLine("  Codec ID: ${video.codecId}")
+                        appendLine()
+                    }
+                    
+                    // Información de Audio
+                    audioInfo?.let { audio ->
+                        appendLine("=== AUDIO ===")
+                        if (audio.format.isNotEmpty()) appendLine("  Formato: ${audio.format}")
+                        if (audio.bitRate.isNotEmpty()) appendLine("  Bitrate: ${audio.bitRate}")
+                        if (audio.streamSize.isNotEmpty()) appendLine("  Stream Size: ${audio.streamSize}")
+                        if (audio.channels.isNotEmpty()) appendLine("  Canales: ${audio.channels}")
+                        if (audio.samplingRate.isNotEmpty()) appendLine("  Sample Rate: ${audio.samplingRate}")
+                        if (audio.language.isNotEmpty()) appendLine("  Idioma: ${audio.language}")
+                        appendLine()
+                    }
+                    
+                    // Información de Subtítulos
+                    if (subtitlesInfo.isNotEmpty()) {
+                        appendLine("=== SUBTÍTULOS (${subtitlesInfo.size} streams) ===")
+                        subtitlesInfo.forEachIndexed { index, subtitle ->
+                            appendLine("  --- Subtítulo ${index + 1} ---")
+                            if (subtitle.format.isNotEmpty()) appendLine("    Formato: ${subtitle.format}")
+                            if (subtitle.bitRate.isNotEmpty()) appendLine("    Bitrate: ${subtitle.bitRate}")
+                            if (subtitle.streamSize.isNotEmpty()) appendLine("    Stream Size: ${subtitle.streamSize}")
+                            if (subtitle.duration.isNotEmpty()) appendLine("    Duración: ${subtitle.duration}")
+                            if (subtitle.countOfElements.isNotEmpty()) appendLine("    Count of Elements: ${subtitle.countOfElements}")
+                            if (subtitle.language.isNotEmpty()) appendLine("    Idioma: ${subtitle.language}")
+                            if (subtitle.title.isNotEmpty()) appendLine("    Título: ${subtitle.title}")
+                            if (subtitle.codecId.isNotEmpty()) appendLine("    Codec ID: ${subtitle.codecId}")
+                            appendLine()
+                        }
+                    }
+                    
                     appendLine("=== INFORMACIÓN COMPLETA ===")
                     appendLine(textOutput)
                 }

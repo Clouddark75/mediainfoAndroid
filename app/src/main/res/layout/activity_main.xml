@@ -18,24 +18,47 @@
         <androidx.appcompat.widget.Toolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
+            android:layout_height="wrap_content"
+            android:minHeight="?attr/actionBarSize"
+            android:paddingTop="4dp"
+            android:paddingBottom="8dp"
             android:background="?attr/colorPrimary"
             app:titleTextColor="?attr/colorOnPrimary"
-            app:title="@string/app_name">
-            
-            <!-- Subtitle con nombre de archivo -->
-            <TextView
-                android:id="@+id/tvSubtitle"
-                android:layout_width="wrap_content"
+            app:title="">
+
+            <!-- Title + Subtitle stacked vertically -->
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="28dp"
-                android:textSize="12sp"
-                android:textColor="?attr/colorOnPrimary"
-                android:alpha="0.7"
-                android:fontFamily="@font/google_sans_font_family"
-                android:singleLine="true"
-                android:ellipsize="middle"
-                tools:text="video.mp4" />
+                android:orientation="vertical"
+                android:gravity="start"
+                android:layout_marginStart="0dp">
+
+                <TextView
+                    android:id="@+id/tvTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/app_name"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:textColor="?attr/colorOnPrimary"
+                    android:fontFamily="@font/google_sans_font_family"
+                    android:singleLine="true" />
+
+                <TextView
+                    android:id="@+id/tvSubtitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="12sp"
+                    android:textColor="?attr/colorOnPrimary"
+                    android:alpha="0.7"
+                    android:fontFamily="@font/google_sans_font_family"
+                    android:singleLine="true"
+                    android:ellipsize="middle"
+                    android:visibility="gone"
+                    tools:text="video.mp4" />
+
+            </LinearLayout>
         </androidx.appcompat.widget.Toolbar>
     </com.google.android.material.appbar.AppBarLayout>
 

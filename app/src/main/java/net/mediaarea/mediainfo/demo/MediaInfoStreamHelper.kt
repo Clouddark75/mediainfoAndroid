@@ -252,7 +252,7 @@ class MediaInfoStreamHelper {
             
             Log.d(TAG, "Análisis completado - Descargado: ${formatBytes(totalBytesRead)} / ${formatBytes(contentLength)}")
             
-            val result = extractCompleteInfo(mediaInfo, totalBytesRead, contentLength)
+            val result = extractCompleteInfo(mediaInfo, totalBytesRead, contentLength, url)
             mediaInfo.Close()
             
             result
@@ -321,7 +321,7 @@ class MediaInfoStreamHelper {
                 
                 mediaInfo.Open_Buffer_Finalize()
                 
-                val result = extractCompleteInfo(mediaInfo, totalBytesRead, actualContentLength)
+                val result = extractCompleteInfo(mediaInfo, totalBytesRead, actualContentLength, url)
                 mediaInfo.Close()
                 
                 result
@@ -368,8 +368,14 @@ class MediaInfoStreamHelper {
         private fun extractCompleteInfo(
             mediaInfo: MediaInfo,
             bytesDownloaded: Long,
-            totalFileSize: Long
+            totalFileSize: Long,
+            sourceUrl: String = ""
         ): StreamAnalysisResult {
+
+            // Inyectar la URL como nombre de archivo para que aparezca en "Complete name"
+            if (sourceUrl.isNotEmpty()) {
+                mediaInfo.Option("File_FileName", sourceUrl)
+            }
             
             mediaInfo.Option("Inform", "MIXML")
             val xmlResult = mediaInfo.Inform()

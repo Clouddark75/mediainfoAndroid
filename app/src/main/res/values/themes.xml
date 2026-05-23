@@ -66,11 +66,17 @@
     <style name="ThemeOverlay.MediaInfo.Dialog.Default" parent="ThemeOverlay.MaterialComponents.MaterialAlertDialog">
         <item name="colorSurface">@color/theme_default_surface</item>
         <item name="colorOnSurface">@color/theme_default_text_primary</item>
+        <!-- colorPrimary inside the dialog = accent color for buttons -->
         <item name="colorPrimary">@color/theme_default_primary</item>
+        <item name="colorPrimaryVariant">@color/theme_default_primary</item>
         <item name="colorOnPrimary">@color/theme_default_on_primary</item>
         <item name="android:textColorPrimary">@color/theme_default_text_primary</item>
+        <item name="android:textColorSecondary">@color/theme_default_text_secondary</item>
         <item name="android:fontFamily">@font/google_sans_font_family</item>
         <item name="fontFamily">@font/google_sans_font_family</item>
+        <!-- Force button text color to accent -->
+        <item name="buttonBarPositiveButtonStyle">@style/Widget.MediaInfo.Dialog.Button</item>
+        <item name="buttonBarNegativeButtonStyle">@style/Widget.MediaInfo.Dialog.Button</item>
     </style>
 
     <!-- Dialog overlay: Dark theme — background = dark surface, buttons = white -->
@@ -78,10 +84,24 @@
         <item name="colorSurface">@color/theme_dark_surface</item>
         <item name="colorOnSurface">@color/theme_dark_text_primary</item>
         <item name="colorPrimary">@color/theme_dark_primary</item>
+        <item name="colorPrimaryVariant">@color/theme_dark_primary</item>
         <item name="colorOnPrimary">@color/theme_dark_on_primary</item>
         <item name="android:textColorPrimary">@color/theme_dark_text_primary</item>
+        <item name="android:textColorSecondary">@color/theme_dark_text_secondary</item>
         <item name="android:fontFamily">@font/google_sans_font_family</item>
         <item name="fontFamily">@font/google_sans_font_family</item>
+        <item name="buttonBarPositiveButtonStyle">@style/Widget.MediaInfo.Dialog.Button.Dark</item>
+        <item name="buttonBarNegativeButtonStyle">@style/Widget.MediaInfo.Dialog.Button.Dark</item>
+    </style>
+
+    <!-- Button style for dialogs: Default (orange) -->
+    <style name="Widget.MediaInfo.Dialog.Button" parent="Widget.MaterialComponents.Button.TextButton.Dialog">
+        <item name="android:textColor">@color/theme_default_primary</item>
+    </style>
+
+    <!-- Button style for dialogs: Dark (white) -->
+    <style name="Widget.MediaInfo.Dialog.Button.Dark" parent="Widget.MaterialComponents.Button.TextButton.Dialog">
+        <item name="android:textColor">@color/theme_dark_primary</item>
     </style>
 
 </resources>

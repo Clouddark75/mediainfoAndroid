@@ -31,6 +31,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import net.mediaarea.mediainfo.demo.databinding.ActivityMainBinding
+import net.mediaarea.mediainfo.demo.BuildConfig
 import net.mediaarea.mediainfo.lib.MediaInfo
 import net.mediaarea.mediainfo.lib.MediaInfoUtil
 
@@ -82,12 +83,14 @@ class MainActivity : AppCompatActivity() {
     
     private fun setupUI() {
         setSupportActionBar(binding.toolbar)
-        
+        // Disable the default ActionBar title — we use our own tvTitle in the Toolbar layout
+        supportActionBar?.setDisplayShowTitleEnabled(false)
+
         // FAB Menu (3 dots)
         binding.fabMenu.setOnClickListener { view ->
             showPopupMenu(view)
         }
-        
+
         // Mensaje inicial
         if (currentOutput.isEmpty()) {
             binding.tvOutput.text = getString(R.string.no_file_loaded)
@@ -99,6 +102,9 @@ class MainActivity : AppCompatActivity() {
         val popup = PopupMenu(this, view)
         popup.menuInflater.inflate(R.menu.menu_main, popup.menu)
         
+        // Habilitar Refresh solo si hay algo cargado
+        popup.menu.findItem(R.id.menu_refresh)?.isEnabled = (currentUri != null || currentStreamUrl != null)
+
         // Marcar formato actual con checkable behavior
         popup.menu.findItem(R.id.menu_output_format)?.subMenu?.apply {
             setGroupCheckable(0, true, true)
@@ -132,6 +138,10 @@ class MainActivity : AppCompatActivity() {
                 }
                 R.id.menu_open_stream -> {
                     showOpenStreamDialog()
+                    true
+                }
+                R.id.menu_refresh -> {
+                    refreshStream()
                     true
                 }
                 R.id.format_text -> {
@@ -277,13 +287,65 @@ class MainActivity : AppCompatActivity() {
         Toast.makeText(this, R.string.copied_to_clipboard, Toast.LENGTH_SHORT).show()
     }
     
+    private fun refreshStream() {
+        when {
+            currentStreamUrl != null -> {
+                analyzeFromStream(currentStreamUrl!!)
+            }
+            currentUri != null -> {
+                // Para archivos locales, re-analizar también
+                analyzeLocalFile(currentUri!!)
+            }
+            else -> {
+                Toast.makeText(this, R.string.no_stream_to_refresh, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     private fun showAboutDialog() {
-        val version = MediaInfoUtil.getVersion()
-        AlertDialog.Builder(this)
+        val mediaInfoVersion = MediaInfoUtil.getVersion()
+        val appVersion = BuildConfig.VERSION_NAME
+        val buildTime = BuildConfig.BUILD_TIME
+        val gitSha = BuildConfig.GIT_SHA
+
+        // Formato: v0.41.0-g2422cb85a
+        val versionString = "v$appVersion-g$gitSha"
+
+        val message = buildString {
+            append(versionString)
+            append("\n")
+            append(buildTime)
+            append("\n\n")
+            append("MediaInfoLib $mediaInfoVersion")
+            append("\n\n")
+            append(getString(R.string.about_description))
+        }
+
+        // Usar el color del tema actual para el título del dialog
+        val builder = AlertDialog.Builder(this)
+        val dialog = builder
             .setTitle(R.string.about_title)
-            .setMessage(getString(R.string.about_version, version) + "\n\n" + getString(R.string.about_description))
+            .setMessage(message)
             .setPositiveButton(R.string.dialog_ok, null)
-            .show()
+            .create()
+
+        dialog.setOnShowListener {
+            // Aplicar color primario del tema al botón positivo
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+                ?.setTextColor(getColorFromTheme())
+        }
+        dialog.show()
+    }
+
+    /**
+     * Obtiene el color primario del tema actual (colorOnPrimary sobre colorPrimary)
+     * para usarlo en diálogos
+     */
+    private fun getColorFromTheme(): Int {
+        val typedArray = obtainStyledAttributes(intArrayOf(com.google.android.material.R.attr.colorPrimary))
+        val color = typedArray.getColor(0, 0)
+        typedArray.recycle()
+        return color
     }
     
     private fun showLicenseDialog() {

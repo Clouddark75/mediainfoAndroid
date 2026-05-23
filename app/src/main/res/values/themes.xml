@@ -1,41 +1,87 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    
+
     <!-- Base Theme -->
     <style name="Theme.MediaInfo.Base" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <item name="android:fontFamily">@font/google_sans_font_family</item>
         <item name="fontFamily">@font/google_sans_font_family</item>
-        <item name="android:statusBarColor">?attr/colorPrimary</item>
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
     </style>
-    
+
     <!-- Theme 1: Default (Brown/Orange Dark) -->
     <style name="Theme.MediaInfo.Default" parent="Theme.MediaInfo.Base">
+        <!-- App background color (Toolbar, status bar, window) -->
         <item name="colorPrimary">@color/theme_default_background</item>
         <item name="colorPrimaryVariant">@color/theme_default_background</item>
         <item name="colorOnPrimary">@color/theme_default_text_primary</item>
-        <item name="android:colorBackground">@color/theme_default_background</item>
+
+        <!-- Accent color: used for dialog buttons, checkboxes, FAB tints -->
+        <item name="colorSecondary">@color/theme_default_primary</item>
+        <item name="colorSecondaryVariant">@color/theme_default_primary</item>
+        <item name="colorOnSecondary">@color/theme_default_on_primary</item>
+
+        <!-- Dialog / Card surfaces -->
         <item name="colorSurface">@color/theme_default_surface</item>
         <item name="colorOnSurface">@color/theme_default_text_primary</item>
+
+        <!-- General backgrounds and text -->
+        <item name="android:colorBackground">@color/theme_default_background</item>
+        <item name="android:windowBackground">@color/theme_default_background</item>
         <item name="android:textColorPrimary">@color/theme_default_text_primary</item>
         <item name="android:textColorSecondary">@color/theme_default_text_secondary</item>
-        <item name="android:windowBackground">@color/theme_default_background</item>
+        <item name="android:statusBarColor">@color/theme_default_background</item>
+
+        <!-- MaterialAlertDialog uses colorSurface for background, colorPrimary for buttons.
+             Override so buttons use our orange accent, not the dark background. -->
+        <item name="materialAlertDialogTheme">@style/ThemeOverlay.MediaInfo.Dialog.Default</item>
     </style>
-    
+
     <!-- Theme 2: Pure Dark (Black/Grey) -->
     <style name="Theme.MediaInfo.Dark" parent="Theme.MediaInfo.Base">
         <item name="colorPrimary">@color/theme_dark_background</item>
         <item name="colorPrimaryVariant">@color/theme_dark_background</item>
         <item name="colorOnPrimary">@color/theme_dark_text_primary</item>
-        <item name="android:colorBackground">@color/theme_dark_background</item>
+
+        <item name="colorSecondary">@color/theme_dark_primary</item>
+        <item name="colorSecondaryVariant">@color/theme_dark_primary</item>
+        <item name="colorOnSecondary">@color/theme_dark_on_primary</item>
+
         <item name="colorSurface">@color/theme_dark_surface</item>
         <item name="colorOnSurface">@color/theme_dark_text_primary</item>
+
+        <item name="android:colorBackground">@color/theme_dark_background</item>
+        <item name="android:windowBackground">@color/theme_dark_background</item>
         <item name="android:textColorPrimary">@color/theme_dark_text_primary</item>
         <item name="android:textColorSecondary">@color/theme_dark_text_secondary</item>
-        <item name="android:windowBackground">@color/theme_dark_background</item>
+        <item name="android:statusBarColor">@color/theme_dark_background</item>
+
+        <item name="materialAlertDialogTheme">@style/ThemeOverlay.MediaInfo.Dialog.Dark</item>
     </style>
-    
-    <!-- Default Theme (Brown/Orange) -->
+
+    <!-- Default Theme alias -->
     <style name="Theme.MediaInfo" parent="Theme.MediaInfo.Default" />
+
+    <!-- Dialog overlay: Default theme — background = surface, buttons = orange accent -->
+    <style name="ThemeOverlay.MediaInfo.Dialog.Default" parent="ThemeOverlay.MaterialComponents.MaterialAlertDialog">
+        <item name="colorSurface">@color/theme_default_surface</item>
+        <item name="colorOnSurface">@color/theme_default_text_primary</item>
+        <item name="colorPrimary">@color/theme_default_primary</item>
+        <item name="colorOnPrimary">@color/theme_default_on_primary</item>
+        <item name="android:textColorPrimary">@color/theme_default_text_primary</item>
+        <item name="android:fontFamily">@font/google_sans_font_family</item>
+        <item name="fontFamily">@font/google_sans_font_family</item>
+    </style>
+
+    <!-- Dialog overlay: Dark theme — background = dark surface, buttons = white -->
+    <style name="ThemeOverlay.MediaInfo.Dialog.Dark" parent="ThemeOverlay.MaterialComponents.MaterialAlertDialog">
+        <item name="colorSurface">@color/theme_dark_surface</item>
+        <item name="colorOnSurface">@color/theme_dark_text_primary</item>
+        <item name="colorPrimary">@color/theme_dark_primary</item>
+        <item name="colorOnPrimary">@color/theme_dark_on_primary</item>
+        <item name="android:textColorPrimary">@color/theme_dark_text_primary</item>
+        <item name="android:fontFamily">@font/google_sans_font_family</item>
+        <item name="fontFamily">@font/google_sans_font_family</item>
+    </style>
+
 </resources>

@@ -372,11 +372,6 @@ class MediaInfoStreamHelper {
             sourceUrl: String = ""
         ): StreamAnalysisResult {
 
-            // Inyectar la URL como nombre de archivo para que aparezca en "Complete name"
-            if (sourceUrl.isNotEmpty()) {
-                mediaInfo.Option("File_FileName", sourceUrl)
-            }
-            
             mediaInfo.Option("Inform", "MIXML")
             val xmlResult = mediaInfo.Inform()
             

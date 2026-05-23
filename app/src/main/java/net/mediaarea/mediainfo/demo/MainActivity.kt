@@ -479,7 +479,9 @@ class MainActivity : AppCompatActivity() {
                     binding.progressBar.visibility = View.GONE
                     
                     if (result.success) {
-                        currentOutput = result.textOutput
+                        // MediaInfo en modo buffer no puede setear "Complete name" por sí solo.
+                        // Lo inyectamos manualmente en el output de texto.
+                        currentOutput = injectCompleteName(result.textOutput, url)
                         refreshDisplay()
                     } else {
                         binding.tvOutput.text = getString(R.string.error_analyzing) + ": ${result.error}"
@@ -510,6 +512,33 @@ class MainActivity : AppCompatActivity() {
     /**
      * Refresca la visualización con el formato actual
      */
+    /**
+     * MediaInfo en modo buffer no puede escribir "Complete name" porque no conoce el origen.
+     * Esta función lo inyecta en el output de texto después del Unique ID (si existe),
+     * o al inicio de la sección General si no hay Unique ID.
+     */
+    private fun injectCompleteName(output: String, url: String): String {
+        if (url.isEmpty() || output.isEmpty()) return output
+        val completeName = "Complete name                            : $url"
+        // Si ya aparece "Complete name" (caso raro), no duplicar
+        if (output.contains("Complete name")) return output
+        // Insertar después de la línea de "Unique ID" si existe
+        val uniqueIdLine = output.lines().indexOfFirst { it.trimStart().startsWith("Unique ID") }
+        if (uniqueIdLine >= 0) {
+            // Puede ser multilínea (el hex va en la línea siguiente), buscar la última parte
+            val lines = output.lines().toMutableList()
+            // Encontrar la última línea del bloque Unique ID (puede tener línea de continuación con "(0x...")
+            var insertAfter = uniqueIdLine
+            if (insertAfter + 1 < lines.size && lines[insertAfter + 1].trimStart().startsWith("(0x")) {
+                insertAfter++
+            }
+            lines.add(insertAfter + 1, completeName)
+            return lines.joinToString("\n")
+        }
+        // Fallback: insertar después de "General\n"
+        return output.replace(Regex("(?m)^(General\\s*)$"), "General\n$completeName")
+    }
+
     private fun refreshDisplay() {
         if (currentOutput.isEmpty()) {
             binding.tvOutput.text = getString(R.string.no_file_loaded)

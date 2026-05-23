@@ -5,6 +5,7 @@
     <!-- Menu Items -->
     <string name="menu_open_file">Open file…</string>
     <string name="menu_open_stream">Open stream…</string>
+    <string name="menu_refresh">Refresh</string>
     <string name="menu_output_format">Output format</string>
     <string name="menu_trim_spaces">Trim spaces</string>
     <string name="menu_copy_clipboard">Copy to clipboard</string>
@@ -56,8 +57,9 @@
     
     <!-- About -->
     <string name="about_title">About MediaInfo</string>
-    <string name="about_version">Version %s</string>
+    <string name="about_version">%s</string>
     <string name="about_description">MediaInfo is a tool for analyzing multimedia files and streams.\n\nBased on MediaInfoLib by MediaArea.net</string>
+    <string name="no_stream_to_refresh">No stream loaded to refresh</string>
     
     <!-- License -->
     <string name="license_title">License</string>

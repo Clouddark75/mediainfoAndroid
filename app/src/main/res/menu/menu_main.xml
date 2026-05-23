@@ -8,6 +8,10 @@
     <item
         android:id="@+id/menu_open_stream"
         android:title="@string/menu_open_stream" />
+
+    <item
+        android:id="@+id/menu_refresh"
+        android:title="@string/menu_refresh" />
     
     <item
         android:id="@+id/menu_output_format"

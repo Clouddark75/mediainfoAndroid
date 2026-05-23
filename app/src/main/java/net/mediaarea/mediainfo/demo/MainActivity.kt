@@ -21,7 +21,7 @@ import android.view.View
 import android.widget.PopupMenu
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AlertDialog
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -207,8 +207,8 @@ class MainActivity : AppCompatActivity() {
             hint = getString(R.string.dialog_open_stream_hint)
             setText("https://")
         }
-        
-        AlertDialog.Builder(this)
+
+        MaterialAlertDialogBuilder(this)
             .setTitle(R.string.dialog_open_stream_title)
             .setView(input)
             .setPositiveButton(R.string.dialog_ok) { _, _ ->
@@ -308,7 +308,6 @@ class MainActivity : AppCompatActivity() {
         val buildTime = BuildConfig.BUILD_TIME
         val gitSha = BuildConfig.GIT_SHA
 
-        // Formato: v0.41.0-g2422cb85a
         val versionString = "v$appVersion-g$gitSha"
 
         val message = buildString {
@@ -321,35 +320,15 @@ class MainActivity : AppCompatActivity() {
             append(getString(R.string.about_description))
         }
 
-        // Usar el color del tema actual para el título del dialog
-        val builder = AlertDialog.Builder(this)
-        val dialog = builder
+        MaterialAlertDialogBuilder(this)
             .setTitle(R.string.about_title)
             .setMessage(message)
             .setPositiveButton(R.string.dialog_ok, null)
-            .create()
-
-        dialog.setOnShowListener {
-            // Aplicar color primario del tema al botón positivo
-            dialog.getButton(AlertDialog.BUTTON_POSITIVE)
-                ?.setTextColor(getColorFromTheme())
-        }
-        dialog.show()
+            .show()
     }
 
-    /**
-     * Obtiene el color primario del tema actual (colorOnPrimary sobre colorPrimary)
-     * para usarlo en diálogos
-     */
-    private fun getColorFromTheme(): Int {
-        val typedArray = obtainStyledAttributes(intArrayOf(com.google.android.material.R.attr.colorPrimary))
-        val color = typedArray.getColor(0, 0)
-        typedArray.recycle()
-        return color
-    }
-    
     private fun showLicenseDialog() {
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
             .setTitle(R.string.license_title)
             .setMessage(R.string.license_text)
             .setPositiveButton(R.string.dialog_ok, null)

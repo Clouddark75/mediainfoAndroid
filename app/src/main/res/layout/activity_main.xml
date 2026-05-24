@@ -5,14 +5,14 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="?attr/colorPrimary">
+    android:background="?android:attr/colorBackground">
 
     <!-- AppBar -->
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/appBarLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="?attr/colorPrimary"
+        android:background="?android:attr/colorBackground"
         app:elevation="0dp">
 
         <androidx.appcompat.widget.Toolbar
@@ -22,8 +22,8 @@
             android:minHeight="?attr/actionBarSize"
             android:paddingTop="4dp"
             android:paddingBottom="8dp"
-            android:background="?attr/colorPrimary"
-            app:titleTextColor="?attr/colorOnPrimary"
+            android:background="?android:attr/colorBackground"
+            app:titleTextColor="?attr/colorOnSurface"
             app:title="">
 
             <!-- Title + Subtitle stacked vertically -->
@@ -41,7 +41,7 @@
                     android:text="@string/app_name"
                     android:textSize="20sp"
                     android:textStyle="bold"
-                    android:textColor="?attr/colorOnPrimary"
+                    android:textColor="?attr/colorOnSurface"
                     android:fontFamily="@font/google_sans_font_family"
                     android:singleLine="true" />
 
@@ -50,7 +50,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:textSize="12sp"
-                    android:textColor="?attr/colorOnPrimary"
+                    android:textColor="?attr/colorOnSurface"
                     android:alpha="0.7"
                     android:fontFamily="@font/google_sans_font_family"
                     android:singleLine="true"
@@ -107,7 +107,7 @@
         android:layout_gravity="bottom|end"
         android:layout_margin="16dp"
         android:src="@android:drawable/ic_menu_more"
-        app:tint="?attr/colorOnPrimary"
+        app:tint="?android:attr/colorBackground"
         app:backgroundTint="?attr/colorPrimary" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

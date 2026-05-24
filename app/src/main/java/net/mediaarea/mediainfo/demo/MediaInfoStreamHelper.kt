@@ -15,8 +15,8 @@ class MediaInfoStreamHelper {
     
     companion object {
         private const val TAG = "MediaInfoStreamHelper"
-        private const val CHUNK_SIZE = 256 * 1024 // 256 KB por chunk
-        private const val INITIAL_READ_SIZE = 20 * 1024 * 1024 // 20 MB inicial
+        private const val CHUNK_SIZE = 512 * 1024        // 512 KB por request
+        private const val END_READ_SIZE = 10 * 1024 * 1024  // 10 MB del final (índices MKV pueden ser grandes)
         private const val MAX_SEQUENTIAL_SIZE = 30 * 1024 * 1024 // 30 MB máximo para método secuencial
         
         /**
@@ -153,108 +153,110 @@ class MediaInfoStreamHelper {
             contentLength: Long,
             progressCallback: ((bytesRead: Long, totalBytes: Long?, status: String) -> Unit)?
         ): StreamAnalysisResult = withContext(Dispatchers.IO) {
-            
+
             Log.d(TAG, "Usando método SEEKING - Tamaño: ${formatBytes(contentLength)}")
             progressCallback?.invoke(0, contentLength, "Iniciando análisis optimizado...")
-            
+
             val mediaInfo = MediaInfo()
+            // Informar a MediaInfo el tamaño total y que empezamos desde 0
             mediaInfo.Open_Buffer_Init(contentLength, 0)
-            
+
             var totalBytesRead = 0L
-            
-            // FASE 1: Leer inicio
-            Log.d(TAG, "FASE 1: Leyendo inicio del archivo...")
-            val initialSize = minOf(INITIAL_READ_SIZE.toLong(), contentLength)
-            val initialData = readRangeSafe(client, url, 0, initialSize - 1)
-            
-            if (initialData != null && initialData.isNotEmpty()) {
-                totalBytesRead = initialData.size.toLong()
-                
-                val state = mediaInfo.Open_Buffer_Continue(initialData, initialData.size.toLong())
-                
-                progressCallback?.invoke(
-                    totalBytesRead,
-                    contentLength,
-                    "Analizando inicio: ${formatBytes(totalBytesRead)}"
-                )
-                
-                Log.d(TAG, "Estado inicial: 0x${state.toString(16)}")
-            } else {
-                throw Exception("No se pudo leer el inicio del archivo")
-            }
-            
-            // FASE 2: Seeking según necesidad de MediaInfo
-            var seekPosition = mediaInfo.Open_Buffer_Continue_GoTo_Get()
-            var seekAttempts = 0
-            val maxSeekAttempts = 10
-            
-            while (seekPosition >= 0 && seekAttempts < maxSeekAttempts) {
-                seekAttempts++
-                Log.d(TAG, "FASE 2: Seeking a posición: ${formatBytes(seekPosition)}")
-                
-                progressCallback?.invoke(
-                    totalBytesRead,
-                    contentLength,
-                    "Buscando metadatos (${seekAttempts}/${maxSeekAttempts})..."
-                )
-                
-                val remainingBytes = contentLength - seekPosition
-                val bytesToRead = minOf(CHUNK_SIZE.toLong(), remainingBytes)
-                
-                if (bytesToRead <= 0) break
-                
-                val seekData = readRangeSafe(client, url, seekPosition, seekPosition + bytesToRead - 1)
-                
-                if (seekData != null && seekData.isNotEmpty()) {
-                    totalBytesRead += seekData.size
-                    
-                    mediaInfo.Open_Buffer_Init(contentLength, seekPosition)
-                    val state = mediaInfo.Open_Buffer_Continue(seekData, seekData.size.toLong())
-                    
-                    Log.d(TAG, "Estado después de seeking: 0x${state.toString(16)}")
-                    
-                    progressCallback?.invoke(
-                        totalBytesRead,
-                        contentLength,
-                        "Procesando: ${formatBytes(totalBytesRead)}"
-                    )
-                    
-                    seekPosition = mediaInfo.Open_Buffer_Continue_GoTo_Get()
-                } else {
-                    Log.w(TAG, "No se pudo leer en posición: $seekPosition")
+            var currentPosition = 0L
+
+            // Loop principal igual al C++: leer → enviar → seek si pide → repetir
+            // MediaInfo decide cuándo tiene suficiente info (bit3 del estado = 0x08)
+            var iteration = 0
+            val maxIterations = 50  // Límite de seguridad generoso
+
+            while (iteration < maxIterations) {
+                iteration++
+
+                // Calcular cuánto leer desde la posición actual
+                val remaining = contentLength - currentPosition
+                if (remaining <= 0) break
+                val toRead = minOf(CHUNK_SIZE.toLong(), remaining)
+
+                val chunkData = readRangeSafe(client, url, currentPosition, currentPosition + toRead - 1)
+
+                if (chunkData == null || chunkData.isEmpty()) {
+                    Log.w(TAG, "No se pudo leer en posición: ${formatBytes(currentPosition)}")
                     break
                 }
-            }
-            
-            // FASE 3: Leer final del archivo
-            val endSize = minOf(5 * 1024 * 1024L, contentLength / 10)
-            val endStart = maxOf(0, contentLength - endSize)
-            
-            if (endStart > INITIAL_READ_SIZE) {
-                Log.d(TAG, "FASE 3: Leyendo final del archivo...")
-                val endData = readRangeSafe(client, url, endStart, contentLength - 1)
-                
-                if (endData != null && endData.isNotEmpty()) {
-                    totalBytesRead += endData.size
-                    
-                    mediaInfo.Open_Buffer_Init(contentLength, endStart)
-                    mediaInfo.Open_Buffer_Continue(endData, endData.size.toLong())
-                    
-                    progressCallback?.invoke(
-                        totalBytesRead,
-                        contentLength,
-                        "Finalizando: ${formatBytes(totalBytesRead)}"
-                    )
+
+                totalBytesRead += chunkData.size
+
+                // Enviar chunk a MediaInfo
+                val state = mediaInfo.Open_Buffer_Continue(chunkData, chunkData.size.toLong())
+
+                Log.d(TAG, "iter=$iteration pos=${formatBytes(currentPosition)} leído=${formatBytes(chunkData.size.toLong())} estado=0x${state.toString(16)}")
+
+                progressCallback?.invoke(
+                    totalBytesRead,
+                    contentLength,
+                    "Analizando: ${formatBytes(totalBytesRead)} / ${formatBytes(contentLength)}"
+                )
+
+                // Bit3 = MediaInfo tiene suficiente información
+                if ((state.toInt() and 0x08) != 0) {
+                    Log.d(TAG, "MediaInfo señaló FIN en iteración $iteration")
+                    break
+                }
+
+                // Verificar si MediaInfo pide un seek (igual que el C++)
+                val seekTo = mediaInfo.Open_Buffer_Continue_GoTo_Get()
+                if (seekTo != -1L) {
+                    Log.d(TAG, "MediaInfo pide seek a: ${formatBytes(seekTo)}")
+                    currentPosition = seekTo
+                    // Informar a MediaInfo que hicimos el seek (igual que C++)
+                    mediaInfo.Open_Buffer_Init(contentLength, currentPosition)
+                } else {
+                    // Avanzar secuencialmente
+                    currentPosition += chunkData.size
                 }
             }
-            
+
+            // Asegurarse de leer el final del archivo — MediaInfo lo necesita para
+            // calcular bitrates reales, stream sizes y duraciones de subs (índice MKV/Cues)
+            val tailSize = minOf(END_READ_SIZE.toLong(), contentLength)
+            val tailStart = contentLength - tailSize
+            if (tailStart > 0 && tailStart != currentPosition) {
+                Log.d(TAG, "Leyendo cola del archivo: ${formatBytes(tailStart)} → ${formatBytes(contentLength)}")
+                progressCallback?.invoke(totalBytesRead, contentLength, "Leyendo índice final...")
+
+                val tailData = readRangeSafe(client, url, tailStart, contentLength - 1)
+                if (tailData != null && tailData.isNotEmpty()) {
+                    totalBytesRead += tailData.size
+                    mediaInfo.Open_Buffer_Init(contentLength, tailStart)
+                    mediaInfo.Open_Buffer_Continue(tailData, tailData.size.toLong())
+
+                    // Procesar cualquier seek adicional que pida después del final
+                    var postTailSeeks = 0
+                    val maxPostTailSeeks = 10
+                    while (postTailSeeks < maxPostTailSeeks) {
+                        val seekTo = mediaInfo.Open_Buffer_Continue_GoTo_Get()
+                        if (seekTo == -1L) break
+                        postTailSeeks++
+                        Log.d(TAG, "Post-tail seek a: ${formatBytes(seekTo)}")
+
+                        val extraData = readRangeSafe(client, url, seekTo, minOf(seekTo + CHUNK_SIZE - 1, contentLength - 1))
+                        if (extraData == null || extraData.isEmpty()) break
+
+                        totalBytesRead += extraData.size
+                        mediaInfo.Open_Buffer_Init(contentLength, seekTo)
+                        val state = mediaInfo.Open_Buffer_Continue(extraData, extraData.size.toLong())
+                        if ((state.toInt() and 0x08) != 0) break
+                    }
+                }
+            }
+
             mediaInfo.Open_Buffer_Finalize()
-            
-            Log.d(TAG, "Análisis completado - Descargado: ${formatBytes(totalBytesRead)} / ${formatBytes(contentLength)}")
-            
+
+            Log.d(TAG, "Análisis completado - Descargado: ${formatBytes(totalBytesRead)} / ${formatBytes(contentLength)} en $iteration iteraciones")
+
             val result = extractCompleteInfo(mediaInfo, totalBytesRead, contentLength, url)
             mediaInfo.Close()
-            
+
             result
         }
         

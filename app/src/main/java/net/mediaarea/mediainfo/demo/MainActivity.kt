@@ -205,7 +205,6 @@ class MainActivity : AppCompatActivity() {
     private fun showOpenStreamDialog() {
         val input = TextInputEditText(this).apply {
             hint = getString(R.string.dialog_open_stream_hint)
-            setText("https://")
         }
 
         MaterialAlertDialogBuilder(this)

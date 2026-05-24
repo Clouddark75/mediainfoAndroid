@@ -17,6 +17,7 @@ class MediaInfoStreamHelper {
         private const val TAG = "MediaInfoStreamHelper"
         private const val SEEK_CHUNK_SIZE = 512 * 1024       // 512 KB para seeks puntuales
         private const val HEAD_SIZE = 5 * 1024 * 1024        // 5 MB del inicio
+        private const val MIDDLE_SIZE = 2 * 1024 * 1024      // 2 MB del medio (bitrates de audio, datos de subs)
         private const val TAIL_SIZE = 10 * 1024 * 1024       // 10 MB del final (índices MKV/Cues)
         private const val MAX_SEQUENTIAL_SIZE = 30 * 1024 * 1024
         
@@ -200,6 +201,39 @@ class MediaInfoStreamHelper {
 
                     if ((state.toInt() and 0x08) != 0) break
                     seekTo = mediaInfo.Open_Buffer_Continue_GoTo_Get()
+                }
+            }
+
+            // ── PASO 2.5: Leer el MEDIO del archivo ──────────────────────────────
+            // Necesario para:
+            // - Bitrate de audio sin bitrate declarado (FLAC, OPUS, TrueHD, DTS-HD)
+            // - Stream size y duration de pistas de texto (ASS/SSA/SRT en MKV)
+            // - Count of elements de subtítulos
+            // MediaInfo calcula estos valores muestreando paquetes reales del stream.
+            val middleStart = contentLength / 2 - MIDDLE_SIZE / 2
+            if (middleStart > HEAD_SIZE && middleStart + MIDDLE_SIZE < contentLength - TAIL_SIZE) {
+                Log.d(TAG, "Paso 2.5: Leyendo medio desde ${formatBytes(middleStart)}")
+                progressCallback?.invoke(totalBytesRead, contentLength, "Muestreando stream...")
+
+                val middleData = readRangeSafe(client, url, middleStart, middleStart + MIDDLE_SIZE - 1)
+                if (middleData != null && middleData.isNotEmpty()) {
+                    totalBytesRead += middleData.size
+                    mediaInfo.Open_Buffer_Init(contentLength, middleStart)
+                    mediaInfo.Open_Buffer_Continue(middleData, middleData.size.toLong())
+
+                    // Seeks adicionales tras el medio
+                    var midSeekTo = mediaInfo.Open_Buffer_Continue_GoTo_Get()
+                    var midSeekCount = 0
+                    while (midSeekTo != -1L && midSeekCount < 4) {
+                        midSeekCount++
+                        val end = minOf(midSeekTo + SEEK_CHUNK_SIZE - 1, contentLength - 1)
+                        val extraData = readRangeSafe(client, url, midSeekTo, end) ?: break
+                        totalBytesRead += extraData.size
+                        mediaInfo.Open_Buffer_Init(contentLength, midSeekTo)
+                        val s = mediaInfo.Open_Buffer_Continue(extraData, extraData.size.toLong())
+                        if ((s.toInt() and 0x08) != 0) break
+                        midSeekTo = mediaInfo.Open_Buffer_Continue_GoTo_Get()
+                    }
                 }
             }
 

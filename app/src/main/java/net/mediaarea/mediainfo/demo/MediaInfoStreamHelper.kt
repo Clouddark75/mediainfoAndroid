@@ -25,10 +25,31 @@ class MediaInfoStreamHelper {
             url: String,
             progressCallback: ((bytesRead: Long, totalBytes: Long?, status: String) -> Unit)? = null
         ): StreamAnalysisResult = withContext(Dispatchers.IO) {
-            
+
+            // OkHttpClient con manejo manual de redirects para preservar el header Range.
+            // El followRedirects automático de OkHttp elimina headers como Range al redirigir,
+            // lo que rompe servidores WebDAV/locales (MiXplorer, etc.) que usan 127.0.0.1:PORT.
             val client = OkHttpClient.Builder()
                 .connectTimeout(30, TimeUnit.SECONDS)
-                .readTimeout(30, TimeUnit.SECONDS)
+                .readTimeout(60, TimeUnit.SECONDS)
+                .followRedirects(false)        // Manejar redirects manualmente
+                .followSslRedirects(false)
+                .addInterceptor { chain ->
+                    var request = chain.request()
+                    var response = chain.proceed(request)
+                    var redirectCount = 0
+                    while (redirectCount < 5 && (response.code == 301 || response.code == 302 ||
+                            response.code == 303 || response.code == 307 || response.code == 308)) {
+                        redirectCount++
+                        val location = response.header("Location") ?: break
+                        response.close()
+                        val newUrl = request.url.resolve(location) ?: break
+                        // Preservar todos los headers incluyendo Range
+                        request = request.newBuilder().url(newUrl).build()
+                        response = chain.proceed(request)
+                    }
+                    response
+                }
                 .build()
             
             try {
@@ -62,84 +83,92 @@ class MediaInfoStreamHelper {
             }
         }
         
-        /**
-         * Detecta las capacidades del servidor de forma segura
-         */
         private fun detectServerCapabilities(client: OkHttpClient, url: String): ServerInfo {
             var contentLength = -1L
             var supportsHead = false
             var supportsRange = false
-            
-            // 1. Intentar HEAD request de forma segura
+
+            // 1. HEAD request para obtener Content-Length y Accept-Ranges
             try {
-                val headRequest = Request.Builder()
-                    .url(url)
-                    .head()
-                    .build()
-                
-                val headResponse = client.newCall(headRequest).execute()
-                
+                val headResponse = client.newCall(
+                    Request.Builder().url(url).head().build()
+                ).execute()
+
                 if (headResponse.isSuccessful) {
                     supportsHead = true
                     contentLength = headResponse.body?.contentLength() ?: -1L
-                    Log.d(TAG, "HEAD exitoso - Content-Length: $contentLength")
+                    // Algunos servidores declaran soporte de Range en el HEAD
+                    val acceptRanges = headResponse.header("Accept-Ranges")
+                    if (acceptRanges != null && acceptRanges != "none") {
+                        supportsRange = true
+                    }
+                    Log.d(TAG, "HEAD: Content-Length=$contentLength Accept-Ranges=$acceptRanges")
                 }
-                
                 headResponse.close()
             } catch (e: Exception) {
-                Log.w(TAG, "HEAD request falló: ${e.message}")
+                Log.w(TAG, "HEAD falló: ${e.message}")
             }
-            
-            // 2. Si HEAD falló, intentar GET normal para obtener Content-Length
+
+            // 2. Si HEAD falló o no dio Content-Length, intentar GET
             if (contentLength <= 0) {
                 try {
-                    val getRequest = Request.Builder()
-                        .url(url)
-                        .build()
-                    
-                    val getResponse = client.newCall(getRequest).execute()
-                    
+                    val getResponse = client.newCall(
+                        Request.Builder().url(url).build()
+                    ).execute()
+
                     if (getResponse.isSuccessful) {
                         contentLength = getResponse.body?.contentLength() ?: -1L
-                        Log.d(TAG, "GET exitoso - Content-Length: $contentLength")
+                        Log.d(TAG, "GET: Content-Length=$contentLength")
                     }
-                    
-                    // Solo consumir unos bytes para no descargar todo
-                    getResponse.body?.byteStream()?.read(ByteArray(1024))
+                    getResponse.body?.byteStream()?.read(ByteArray(512))
                     getResponse.close()
                 } catch (e: Exception) {
-                    Log.w(TAG, "GET request falló: ${e.message}")
+                    Log.w(TAG, "GET falló: ${e.message}")
                 }
             }
-            
-            // 3. Verificar soporte de Range solo si tenemos Content-Length
-            if (contentLength > 0) {
+
+            // 3. Verificar Range solo si tenemos Content-Length y aún no confirmamos soporte
+            if (contentLength > 0 && !supportsRange) {
                 try {
-                    val rangeRequest = Request.Builder()
-                        .url(url)
-                        .addHeader("Range", "bytes=0-1023")
-                        .build()
-                    
-                    val rangeResponse = client.newCall(rangeRequest).execute()
-                    
-                    // Código 206 = Partial Content (soporta Range)
-                    supportsRange = rangeResponse.code == 206
-                    
-                    Log.d(TAG, "Test Range - Código: ${rangeResponse.code}, Soporta: $supportsRange")
-                    
+                    val rangeResponse = client.newCall(
+                        Request.Builder()
+                            .url(url)
+                            .addHeader("Range", "bytes=0-1023")
+                            .build()
+                    ).execute()
+
+                    when (rangeResponse.code) {
+                        206 -> {
+                            // Respuesta ideal: Partial Content
+                            supportsRange = true
+                            Log.d(TAG, "Range: 206 Partial Content ✓")
+                        }
+                        200 -> {
+                            // Algunos servidores locales/WebDAV responden 200 pero sí sirven
+                            // el rango correcto. Verificar por Content-Range o tamaño de respuesta.
+                            val contentRange = rangeResponse.header("Content-Range")
+                            val bodyLen = rangeResponse.body?.contentLength() ?: -1L
+                            if (contentRange != null || bodyLen in 1..2048) {
+                                supportsRange = true
+                                Log.d(TAG, "Range: 200 con Content-Range=$contentRange bodyLen=$bodyLen → asumiendo soporte ✓")
+                            } else {
+                                Log.d(TAG, "Range: 200 sin indicadores → sin soporte de Range")
+                            }
+                        }
+                        else -> Log.d(TAG, "Range: código ${rangeResponse.code} → sin soporte")
+                    }
                     rangeResponse.close()
                 } catch (e: Exception) {
                     Log.w(TAG, "Range test falló: ${e.message}")
-                    supportsRange = false
                 }
             }
-            
-            // Determinar método recomendado
+
             val recommendedMethod = when {
                 contentLength > 0 && supportsRange -> AnalysisMethod.SEEKING
                 else -> AnalysisMethod.SEQUENTIAL
             }
-            
+
+            Log.d(TAG, "Método: $recommendedMethod (contentLength=$contentLength supportsRange=$supportsRange)")
             return ServerInfo(contentLength, supportsHead, supportsRange, recommendedMethod)
         }
         

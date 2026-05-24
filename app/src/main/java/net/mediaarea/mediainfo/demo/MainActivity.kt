@@ -21,11 +21,14 @@ import android.view.View
 import android.widget.PopupMenu
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import androidx.appcompat.app.AppCompatActivity
+import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.textfield.TextInputEditText
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -83,20 +86,32 @@ class MainActivity : AppCompatActivity() {
     
     private fun setupUI() {
         setSupportActionBar(binding.toolbar)
-        // Disable the default ActionBar title — we use our own tvTitle in the Toolbar layout
         supportActionBar?.setDisplayShowTitleEnabled(false)
 
-        // FAB Menu (3 dots)
+        // Ajustar el FAB para que quede sobre la barra de navegación (botones o gestos)
+        ViewCompat.setOnApplyWindowInsetsListener(binding.fabMenu) { view, insets ->
+            val navBar = insets.getInsets(WindowInsetsCompat.Type.navigationBars())
+            val basePaddingBottom = 16.dpToPx()
+            val basePaddingEnd = 16.dpToPx()
+            val params = view.layoutParams as CoordinatorLayout.LayoutParams
+            params.bottomMargin = basePaddingBottom + navBar.bottom
+            params.marginEnd = basePaddingEnd
+            view.layoutParams = params
+            insets
+        }
+
         binding.fabMenu.setOnClickListener { view ->
             showPopupMenu(view)
         }
 
-        // Mensaje inicial
         if (currentOutput.isEmpty()) {
             binding.tvOutput.text = getString(R.string.no_file_loaded)
             binding.tvSubtitle.visibility = View.GONE
         }
     }
+
+    private fun Int.dpToPx(): Int =
+        (this * resources.displayMetrics.density).toInt()
     
     private fun showPopupMenu(view: View) {
         val popup = PopupMenu(this, view)

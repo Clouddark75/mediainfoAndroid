@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources xmlns:tools="http://schemas.android.com/tools">
+<resources>
 
     <!-- Base Theme -->
     <style name="Theme.MediaInfo.Base" parent="Theme.Material3.DayNight.NoActionBar">
@@ -9,47 +9,67 @@
         <item name="windowNoTitle">true</item>
     </style>
 
-    <!-- Theme 1: Default (Brown/Orange Dark) -->
+    <!--
+        Theme 1: Default (Brown/Orange Dark)
+
+        En M3, colorPrimary es el color de ACCENT (radio buttons, checkboxes, FABs, botones).
+        Para el fondo de la Toolbar usamos android:colorBackground y lo aplicamos en código.
+        Así los controles interactivos quedan en naranja (#FFAB91) correctamente.
+    -->
     <style name="Theme.MediaInfo.Default" parent="Theme.MediaInfo.Base">
-        <item name="colorPrimary">@color/theme_default_background</item>
-        <item name="colorPrimaryVariant">@color/theme_default_background</item>
-        <item name="colorOnPrimary">@color/theme_default_text_primary</item>
+        <!-- colorPrimary = naranja — controla radio buttons, checkboxes, FAB, botones de diálogo -->
+        <item name="colorPrimary">@color/theme_default_primary</item>
+        <item name="colorOnPrimary">@color/theme_default_on_primary</item>
+        <item name="colorPrimaryContainer">@color/theme_default_surface_variant</item>
+        <item name="colorOnPrimaryContainer">@color/theme_default_text_primary</item>
+
+        <!-- Secondary (no se usa mucho pero lo definimos bien) -->
         <item name="colorSecondary">@color/theme_default_primary</item>
         <item name="colorOnSecondary">@color/theme_default_on_primary</item>
+
+        <!-- Surface = color de cards, diálogos, menús -->
         <item name="colorSurface">@color/theme_default_surface</item>
         <item name="colorOnSurface">@color/theme_default_text_primary</item>
+        <item name="colorOnSurfaceVariant">@color/theme_default_text_secondary</item>
+        <item name="colorSurfaceVariant">@color/theme_default_surface_variant</item>
+
+        <!-- Window / app background -->
         <item name="android:colorBackground">@color/theme_default_background</item>
         <item name="android:windowBackground">@color/theme_default_background</item>
+        <item name="android:statusBarColor">@color/theme_default_background</item>
         <item name="android:textColorPrimary">@color/theme_default_text_primary</item>
         <item name="android:textColorSecondary">@color/theme_default_text_secondary</item>
-        <item name="android:statusBarColor">@color/theme_default_background</item>
+
         <item name="materialAlertDialogTheme">@style/ThemeOverlay.MediaInfo.Dialog.Default</item>
     </style>
 
     <!-- Theme 2: Pure Dark (Black/Grey) -->
     <style name="Theme.MediaInfo.Dark" parent="Theme.MediaInfo.Base">
-        <item name="colorPrimary">@color/theme_dark_background</item>
-        <item name="colorPrimaryVariant">@color/theme_dark_background</item>
-        <item name="colorOnPrimary">@color/theme_dark_text_primary</item>
+        <item name="colorPrimary">@color/theme_dark_primary</item>
+        <item name="colorOnPrimary">@color/theme_dark_on_primary</item>
+        <item name="colorPrimaryContainer">@color/theme_dark_surface_variant</item>
+        <item name="colorOnPrimaryContainer">@color/theme_dark_text_primary</item>
+
         <item name="colorSecondary">@color/theme_dark_primary</item>
         <item name="colorOnSecondary">@color/theme_dark_on_primary</item>
+
         <item name="colorSurface">@color/theme_dark_surface</item>
         <item name="colorOnSurface">@color/theme_dark_text_primary</item>
+        <item name="colorOnSurfaceVariant">@color/theme_dark_text_secondary</item>
+        <item name="colorSurfaceVariant">@color/theme_dark_surface_variant</item>
+
         <item name="android:colorBackground">@color/theme_dark_background</item>
         <item name="android:windowBackground">@color/theme_dark_background</item>
+        <item name="android:statusBarColor">@color/theme_dark_background</item>
         <item name="android:textColorPrimary">@color/theme_dark_text_primary</item>
         <item name="android:textColorSecondary">@color/theme_dark_text_secondary</item>
-        <item name="android:statusBarColor">@color/theme_dark_background</item>
+
         <item name="materialAlertDialogTheme">@style/ThemeOverlay.MediaInfo.Dialog.Dark</item>
     </style>
 
     <style name="Theme.MediaInfo" parent="Theme.MediaInfo.Default" />
 
-    <!--
-        M3 dialog overlays.
-        En Material3, los botones de texto del diálogo toman su color de colorPrimary
-        dentro del overlay. colorSurface = fondo del diálogo, colorOnSurface = texto del cuerpo.
-    -->
+    <!-- Dialog overlays M3 -->
     <style name="ThemeOverlay.MediaInfo.Dialog.Default" parent="ThemeOverlay.Material3.MaterialAlertDialog">
         <item name="colorSurface">@color/theme_default_surface</item>
         <item name="colorOnSurface">@color/theme_default_text_primary</item>

@@ -15,10 +15,7 @@ class MediaInfoStreamHelper {
     
     companion object {
         private const val TAG = "MediaInfoStreamHelper"
-        private const val SEEK_CHUNK_SIZE = 512 * 1024       // 512 KB para seeks puntuales
-        private const val HEAD_SIZE = 5 * 1024 * 1024        // 5 MB del inicio
-        private const val MIDDLE_SIZE = 2 * 1024 * 1024      // 2 MB del medio (bitrates de audio, datos de subs)
-        private const val TAIL_SIZE = 10 * 1024 * 1024       // 10 MB del final (índices MKV/Cues)
+        private const val SEEK_CHUNK_SIZE = 16 * 1024 * 1024  // 16 MB — recomendado por el autor de MediaInfoLib
         private const val MAX_SEQUENTIAL_SIZE = 30 * 1024 * 1024
         
         /**
@@ -161,119 +158,66 @@ class MediaInfoStreamHelper {
 
             val mediaInfo = MediaInfo()
             mediaInfo.Open_Buffer_Init(contentLength, 0)
+
             var totalBytesRead = 0L
+            var currentPosition = 0L
+            var continueLoop = true
 
-            // ── PASO 1: Leer el INICIO en un solo request grande ──────────────────
-            // El inicio contiene headers del contenedor, info de codec, etc.
-            val headSize = minOf(HEAD_SIZE.toLong(), contentLength)
-            Log.d(TAG, "Paso 1: Leyendo inicio ${formatBytes(headSize)}")
-            progressCallback?.invoke(0, contentLength, "Leyendo cabecera...")
+            // Loop fiel al patrón correcto de MediaInfoLib:
+            // 1. Leer chunk desde currentPosition
+            // 2. Enviar a Open_Buffer_Continue → chequear bit3 (finalizado)
+            // 3. Llamar Open_Buffer_Continue_GoTo_Get → si !=-1, hacer seek y reiniciar
+            // 4. Si GoTo==-1 y bit3==0, avanzar secuencialmente
+            // El autor de MediaInfoLib recomienda chunks de ~16MB
 
-            val headData = readRangeSafe(client, url, 0, headSize - 1)
-            if (headData == null || headData.isEmpty()) {
-                mediaInfo.Close()
-                return@withContext StreamAnalysisResult(success = false, error = "No se pudo leer el inicio del archivo")
-            }
-            totalBytesRead += headData.size
-            var state = mediaInfo.Open_Buffer_Continue(headData, headData.size.toLong())
-            Log.d(TAG, "Inicio leído: ${formatBytes(headData.size.toLong())} estado=0x${state.toString(16)}")
+            while (continueLoop) {
+                val remaining = contentLength - currentPosition
+                if (remaining <= 0) break
 
-            progressCallback?.invoke(totalBytesRead, contentLength, "Cabecera leída...")
+                val toRead = minOf(SEEK_CHUNK_SIZE.toLong(), remaining)
+                Log.d(TAG, "Leyendo ${formatBytes(toRead)} desde ${formatBytes(currentPosition)}")
 
-            // ── PASO 2: Seeks puntuales que pida MediaInfo tras el inicio ─────────
-            // Normalmente MediaInfo pide saltar al final del contenedor (seek al índice)
-            if ((state.toInt() and 0x08) == 0) {
-                var seekTo = mediaInfo.Open_Buffer_Continue_GoTo_Get()
-                var seekCount = 0
-                val maxSeeks = 8
-
-                while (seekTo != -1L && seekCount < maxSeeks) {
-                    seekCount++
-                    Log.d(TAG, "Seek $seekCount → ${formatBytes(seekTo)}")
-                    progressCallback?.invoke(totalBytesRead, contentLength, "Seek $seekCount...")
-
-                    val end = minOf(seekTo + SEEK_CHUNK_SIZE - 1, contentLength - 1)
-                    val seekData = readRangeSafe(client, url, seekTo, end) ?: break
-
-                    totalBytesRead += seekData.size
-                    mediaInfo.Open_Buffer_Init(contentLength, seekTo)
-                    state = mediaInfo.Open_Buffer_Continue(seekData, seekData.size.toLong())
-
-                    if ((state.toInt() and 0x08) != 0) break
-                    seekTo = mediaInfo.Open_Buffer_Continue_GoTo_Get()
+                val chunkData = readRangeSafe(client, url, currentPosition, currentPosition + toRead - 1)
+                if (chunkData == null || chunkData.isEmpty()) {
+                    Log.w(TAG, "No se pudo leer en ${formatBytes(currentPosition)}, abortando")
+                    break
                 }
-            }
 
-            // ── PASO 2.5: Leer el MEDIO del archivo ──────────────────────────────
-            // Necesario para:
-            // - Bitrate de audio sin bitrate declarado (FLAC, OPUS, TrueHD, DTS-HD)
-            // - Stream size y duration de pistas de texto (ASS/SSA/SRT en MKV)
-            // - Count of elements de subtítulos
-            // MediaInfo calcula estos valores muestreando paquetes reales del stream.
-            val middleStart = contentLength / 2 - MIDDLE_SIZE / 2
-            if (middleStart > HEAD_SIZE && middleStart + MIDDLE_SIZE < contentLength - TAIL_SIZE) {
-                Log.d(TAG, "Paso 2.5: Leyendo medio desde ${formatBytes(middleStart)}")
-                progressCallback?.invoke(totalBytesRead, contentLength, "Muestreando stream...")
+                totalBytesRead += chunkData.size
+                val state = mediaInfo.Open_Buffer_Continue(chunkData, chunkData.size.toLong())
 
-                val middleData = readRangeSafe(client, url, middleStart, middleStart + MIDDLE_SIZE - 1)
-                if (middleData != null && middleData.isNotEmpty()) {
-                    totalBytesRead += middleData.size
-                    mediaInfo.Open_Buffer_Init(contentLength, middleStart)
-                    mediaInfo.Open_Buffer_Continue(middleData, middleData.size.toLong())
+                progressCallback?.invoke(
+                    totalBytesRead, contentLength,
+                    "Analizando: ${formatBytes(totalBytesRead)} / ${formatBytes(contentLength)}"
+                )
 
-                    // Seeks adicionales tras el medio
-                    var midSeekTo = mediaInfo.Open_Buffer_Continue_GoTo_Get()
-                    var midSeekCount = 0
-                    while (midSeekTo != -1L && midSeekCount < 4) {
-                        midSeekCount++
-                        val end = minOf(midSeekTo + SEEK_CHUNK_SIZE - 1, contentLength - 1)
-                        val extraData = readRangeSafe(client, url, midSeekTo, end) ?: break
-                        totalBytesRead += extraData.size
-                        mediaInfo.Open_Buffer_Init(contentLength, midSeekTo)
-                        val s = mediaInfo.Open_Buffer_Continue(extraData, extraData.size.toLong())
-                        if ((s.toInt() and 0x08) != 0) break
-                        midSeekTo = mediaInfo.Open_Buffer_Continue_GoTo_Get()
-                    }
+                Log.d(TAG, "state=0x${state.toString(16)} pos=${formatBytes(currentPosition)}")
+
+                // Bit3: MediaInfo tiene suficiente información
+                if ((state.toInt() and 0x08) != 0) {
+                    Log.d(TAG, "MediaInfo finalizó")
+                    break
                 }
-            }
 
-            // ── PASO 3: Leer el FINAL en un solo request grande ──────────────────
-            // El final del MKV contiene: Cues (índice de seek), Tags, Attachments.
-            // Sin esto faltan: bitrates reales, stream size, duración de subs, count of elements.
-            val tailSize = minOf(TAIL_SIZE.toLong(), contentLength)
-            val tailStart = contentLength - tailSize
-
-            // Solo si el final no está ya cubierto por el inicio
-            if (tailStart > headSize) {
-                Log.d(TAG, "Paso 3: Leyendo final desde ${formatBytes(tailStart)}")
-                progressCallback?.invoke(totalBytesRead, contentLength, "Leyendo índice final...")
-
-                val tailData = readRangeSafe(client, url, tailStart, contentLength - 1)
-                if (tailData != null && tailData.isNotEmpty()) {
-                    totalBytesRead += tailData.size
-                    mediaInfo.Open_Buffer_Init(contentLength, tailStart)
-                    mediaInfo.Open_Buffer_Continue(tailData, tailData.size.toLong())
-
-                    // Seeks adicionales que pida MediaInfo tras leer el índice
-                    var postSeekTo = mediaInfo.Open_Buffer_Continue_GoTo_Get()
-                    var postSeekCount = 0
-                    val maxPostSeeks = 5
-                    while (postSeekTo != -1L && postSeekCount < maxPostSeeks) {
-                        postSeekCount++
-                        Log.d(TAG, "Post-tail seek $postSeekCount → ${formatBytes(postSeekTo)}")
-                        val end = minOf(postSeekTo + SEEK_CHUNK_SIZE - 1, contentLength - 1)
-                        val extraData = readRangeSafe(client, url, postSeekTo, end) ?: break
-                        totalBytesRead += extraData.size
-                        mediaInfo.Open_Buffer_Init(contentLength, postSeekTo)
-                        val s = mediaInfo.Open_Buffer_Continue(extraData, extraData.size.toLong())
-                        if ((s.toInt() and 0x08) != 0) break
-                        postSeekTo = mediaInfo.Open_Buffer_Continue_GoTo_Get()
+                // Chequear si MediaInfo pide un seek
+                val seekTo = mediaInfo.Open_Buffer_Continue_GoTo_Get()
+                if (seekTo != -1L) {
+                    Log.d(TAG, "Seek solicitado → ${formatBytes(seekTo)}")
+                    currentPosition = seekTo
+                    mediaInfo.Open_Buffer_Init(contentLength, currentPosition)
+                } else {
+                    // Sin seek: avanzar secuencialmente
+                    currentPosition += chunkData.size
+                    // Si llegamos al final sin que MediaInfo finalizara, salir
+                    if (currentPosition >= contentLength) {
+                        Log.d(TAG, "Fin del archivo alcanzado")
+                        break
                     }
                 }
             }
 
             mediaInfo.Open_Buffer_Finalize()
-            Log.d(TAG, "Análisis completado — descargado: ${formatBytes(totalBytesRead)} / ${formatBytes(contentLength)}")
+            Log.d(TAG, "Total descargado: ${formatBytes(totalBytesRead)} / ${formatBytes(contentLength)}")
 
             val result = extractCompleteInfo(mediaInfo, totalBytesRead, contentLength, url)
             mediaInfo.Close()

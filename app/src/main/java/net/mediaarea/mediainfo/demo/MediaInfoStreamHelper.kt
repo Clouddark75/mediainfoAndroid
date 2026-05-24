@@ -279,7 +279,7 @@ class MediaInfoStreamHelper {
                 val mediaInfo = MediaInfo()
                 mediaInfo.Open_Buffer_Init(actualContentLength, 0)
                 
-                val buffer = ByteArray(CHUNK_SIZE)
+                val buffer = ByteArray(SEEK_CHUNK_SIZE)
                 var totalBytesRead = 0L
                 
                 while (totalBytesRead < MAX_SEQUENTIAL_SIZE) {
